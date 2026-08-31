@@ -1,0 +1,11 @@
+# Optional install profile. Use this after docker-compose.example.yml to make all three Docker modes
+# selectable in the Companion navigation. Docker write and exec access are host-root-equivalent.
+services:
+  socket-proxy:
+    environment:
+      POST: 1
+      EXEC: 1
+
+  companion:
+    environment:
+      DOCKER_ACCESS_MAX: "shell"

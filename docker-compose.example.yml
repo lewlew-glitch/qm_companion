@@ -1,0 +1,124 @@
+# Base read-only profile. Set the required values in .env, then run:
+# docker compose -f docker-compose.example.yml up -d --build
+
+services:
+  # Authenticated Docker API proxy.
+  socket-proxy:
+    # The wrapper pins v0.5.0 and blocks Docker archive routes.
+    build:
+      context: .
+      dockerfile: Dockerfile.socket-proxy
+    image: qm-socket-proxy:local
+    container_name: qm-socket-proxy
+    labels:
+      # Excludes this container from panel controls.
+      qm.protected: "true"
+    environment:
+      # Shared with the companion service. Use a different value from SECRET_KEY:
+      #   umask 077; printf 'QM_PROXY_KEY=%s\n' "$(openssl rand -hex 32)" >> .env
+      QM_PROXY_KEY: "${QM_PROXY_KEY:?QM_PROXY_KEY is required (at least 32 characters; set it in .env).}"
+      CONTAINERS: 1
+      IMAGES: 1
+      VOLUMES: 1
+      NETWORKS: 1
+      INFO: 1 # host name, cores, RAM for the top bar
+      PING: 1
+      SYSTEM: 1 # disk usage breakdown on the dashboard
+      POST: 0 # read-only: no start/stop gets through
+      EXEC: 0 # no container exec or shell
+      # POST=1 grants broad writes for each enabled resource section.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:size=4m,mode=1777
+      - /run:size=1m,mode=0755
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          wget -q -O - -T 3 --header="x-qm-proxy-key: $${QM_PROXY_KEY}"
+          http://127.0.0.1:2375/_ping | grep -qx OK
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks: [qm-internal]
+    restart: unless-stopped
+
+  companion:
+    build: .
+    container_name: qm-companion
+    labels:
+      # Excludes this container from panel controls.
+      qm.protected: "true"
+    depends_on: [socket-proxy]
+    # Restrict writes to the data volume and drop Linux capabilities.
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:'+(process.env.PORT||8787)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    ports:
+      # Bind the NAS's LAN address explicitly so Docker does not publish the panel on every interface.
+      # Use 127.0.0.1 here instead when only a same-host reverse proxy should reach Companion.
+      - "192.168.1.10:8787:8787"
+    environment:
+      # Store this in the gitignored .env file:
+      #   umask 077; printf 'SECRET_KEY=%s\n' "$(openssl rand -hex 32)" >> .env
+      SECRET_KEY: "${SECRET_KEY:?SECRET_KEY is required (64 hexadecimal characters; set it in .env).}"
+      # Optional first-run bootstrap token.
+      # SETUP_TOKEN: "PUT_A_DIFFERENT_64_HEX_TOKEN_HERE"
+      # Address used by the browser and phone.
+      QM_HOST: "192.168.1.10"
+      # Optional pairing preset.
+      # QM_REMOTE_HOST: "nas.your-tailnet.ts.net"
+      # Listen on the container network.
+      BIND_ADDRESS: "0.0.0.0"
+      # Docker proxy endpoint.
+      DOCKER_HOST: "tcp://socket-proxy:2375"
+      QM_PROXY_KEY: "${QM_PROXY_KEY:?QM_PROXY_KEY is required (at least 32 characters; set it in .env).}"
+      # Optional host roots allowed for Marketplace bind mounts. Empty permits named volumes only.
+      #   DOCKER_DEPLOY_BIND_ROOTS: "/volume1/docker"
+      # Optional address for ports published by Marketplace deployments.
+      #   DOCKER_DEPLOY_BIND_ADDRESS: "192.168.1.10"
+      # Installed Docker access limit.
+      DOCKER_ACCESS_MAX: "read"
+      # Legacy v1 state only: enable for one migration boot, confirm v2, then remove permanently.
+      # MIGRATE_V1_STATE: "true"
+    volumes:
+      # Mount individual service config files read-only.
+      - /volume1/docker/radarr/config.xml:/stack/radarr/config.xml:ro
+      - /volume1/docker/sonarr/config.xml:/stack/sonarr/config.xml:ro
+      - /volume1/docker/lidarr/config.xml:/stack/lidarr/config.xml:ro
+      - /volume1/docker/prowlarr/config.xml:/stack/prowlarr/config.xml:ro
+      # Uncomment only the services and host paths that exist on your server.
+      # - /volume1/docker/bazarr/config/config.yaml:/stack/bazarr/config.yaml:ro
+      # - /volume1/docker/sabnzbd/sabnzbd.ini:/stack/sabnzbd/sabnzbd.ini:ro
+      # - /volume1/docker/jellyseerr/settings.json:/stack/jellyseerr/settings.json:ro
+      # - /volume1/docker/overseerr/settings.json:/stack/overseerr/settings.json:ro
+      # Encrypted application state.
+      - qm-data:/data
+    # Only Companion joins qm-egress. The Docker proxy remains isolated on qm-internal.
+    # An internal Docker network still gets a gateway address on the Docker host,
+    # so QM_PROXY_KEY remains the authentication boundary.
+    networks: [qm-internal, qm-egress]
+    restart: unless-stopped
+
+volumes:
+  qm-data:
+
+networks:
+  qm-internal:
+    driver: bridge
+    internal: true
+  qm-egress:
+    driver: bridge

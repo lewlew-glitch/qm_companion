@@ -1,0 +1,20 @@
+{
+  "name": "qm_companion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A self-hosted companion for Quartermaster pairing, service status and opt-in Docker management.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test --test-concurrency=2"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@hpke/core": "1.9.0",
+    "qrcode": "^1.5.4"
+  },
+  "license": "MIT"
+}

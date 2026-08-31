@@ -1,0 +1,8 @@
+# Run an immutable prebuilt image instead of building locally.
+# Place this file after other profile and override files:
+#   docker compose -f docker-compose.example.yml \
+#     -f docker-compose.mobile.yml -f docker-compose.pinned-image.yml up -d --no-build
+services:
+  companion:
+    build: !reset null
+    image: "${QM_COMPANION_IMAGE:?QM_COMPANION_IMAGE is required by docker-compose.pinned-image.yml; use an image ID or repository digest}"

@@ -1,0 +1,9 @@
+{
+  "name": "qm-mobile-protocol-hpke-fixtures",
+  "private": true,
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "@hpke/core": "1.9.0"
+  }
+}

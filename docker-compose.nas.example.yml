@@ -1,0 +1,83 @@
+# Reference for the gitignored docker-compose.nas.yml overlay.
+# Replace the documentation addresses and mount sources before use.
+# Keep the proxy internal, share QM_PROXY_KEY between both services, and publish one host address.
+
+services:
+  socket-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.socket-proxy
+    image: qm-socket-proxy:local
+    labels:
+      # Excludes this container from panel controls.
+      qm.protected: "true"
+    environment:
+      # Shared with the companion service below.
+      QM_PROXY_KEY: "${QM_PROXY_KEY:?QM_PROXY_KEY is required: a shared secret at least 32 characters long, different from SECRET_KEY.}"
+      AUTH: 0
+      BUILD: 0
+      COMMIT: 0
+      CONFIGS: 0
+      CONTAINERS: 1
+      DISTRIBUTION: 0
+      EVENTS: 1
+      EXEC: 0
+      GRPC: 0
+      IMAGES: 1
+      INFO: 1
+      NETWORKS: 1
+      NODES: 0
+      PING: 1
+      PLUGINS: 0
+      POST: 0
+      SECRETS: 0
+      SERVICES: 0
+      SESSION: 0
+      SWARM: 0
+      SYSTEM: 1
+      TASKS: 0
+      VERSION: 1
+      VOLUMES: 1
+    read_only: true
+    cap_drop: !override [ALL]
+    security_opt: !override [no-new-privileges:true]
+    tmpfs: !override
+      - /tmp:size=4m,mode=1777
+      - /run:size=1m,mode=0755
+    # Internal network only; no published ports.
+    networks: !override [qm-internal]
+
+  companion:
+    labels:
+      qm.protected: "true"
+    read_only: true
+    cap_drop: !override [ALL]
+    security_opt: !override [no-new-privileges:true]
+    tmpfs: !override
+      - /tmp:size=16m,mode=1777
+    # One explicit host address. A bare "8787:8787" publishes on every interface.
+    ports: !override
+      - "192.0.2.10:8787:8787"
+    environment:
+      BIND_ADDRESS: "0.0.0.0"
+      DOCKER_CONTROL: "false"
+      # Docker proxy endpoint.
+      DOCKER_HOST: "tcp://socket-proxy:2375"
+      QM_PROXY_KEY: "${QM_PROXY_KEY:?QM_PROXY_KEY is required: a shared secret at least 32 characters long, different from SECRET_KEY.}"
+      MIGRATE_V1_STATE: "false"
+      # 192.0.2.0/24 is the RFC 5737 documentation range.
+      QM_HOST: "192.0.2.10"
+      QM_STACK: "/stack"
+    volumes: !override
+      # Mount one read-only config file per service, not an app-data parent directory.
+      - /srv/appdata/radarr/config.xml:/stack/radarr/config.xml:ro
+      - /srv/appdata/sonarr/config.xml:/stack/sonarr/config.xml:ro
+      - qm-data:/data
+    networks: !override [qm-internal, qm-egress]
+
+networks:
+  qm-internal:
+    driver: bridge
+    internal: true
+  qm-egress:
+    driver: bridge

@@ -1,0 +1,31 @@
+# Pinned socket proxy with request authentication and endpoint restrictions.
+FROM ghcr.io/tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
+
+USER root
+
+COPY LICENSE /usr/share/licenses/qm-companion/LICENSE
+COPY THIRD_PARTY_NOTICES.md /usr/share/licenses/qm-companion/THIRD_PARTY_NOTICES.md
+COPY src/assets/icons/LICENSE /usr/share/licenses/qm-companion/APACHE-2.0.txt
+
+RUN apk upgrade --no-cache \
+    && test "$(grep -Fc '    timeout server 0' /usr/local/etc/haproxy/haproxy.cfg.template)" -eq 1 \
+    && sed -i 's/^    timeout server 0$/    timeout server 24h/' /usr/local/etc/haproxy/haproxy.cfg.template \
+    && grep -Fqx '    timeout server 24h' /usr/local/etc/haproxy/haproxy.cfg.template \
+    && awk '1; /# Allowed endpoints/ { \
+      print "    # Modified by Quartermaster Companion: authenticated access, bounded event idle time; HEAD, archive and export disabled."; \
+      print "    http-request set-var(txn.qmkey) env(QM_PROXY_KEY)"; \
+      print "    http-request deny unless { var(txn.qmkey) -m found }"; \
+      print "    http-request deny unless { var(txn.qmkey),length gt 31 }"; \
+      print "    http-request deny unless { req.hdr(x-qm-proxy-key),strcmp(txn.qmkey) eq 0 }"; \
+      print "    http-request deny if { method HEAD }"; \
+      print "    http-request deny if { path,url_dec -m reg -i ^(/v[\\d\\.]+)?/containers/[a-zA-Z0-9_.-]+/(archive|export)/?$ }"; \
+    }' /usr/local/etc/haproxy/haproxy.cfg.template > /tmp/haproxy.cfg.template \
+    && mv /tmp/haproxy.cfg.template /usr/local/etc/haproxy/haproxy.cfg.template \
+    && grep -Fq 'http-request deny if { method HEAD }' /usr/local/etc/haproxy/haproxy.cfg.template \
+    && grep -Fq '(archive|export)/?$' /usr/local/etc/haproxy/haproxy.cfg.template \
+    && grep -Fq 'set-var(txn.qmkey) env(QM_PROXY_KEY)' /usr/local/etc/haproxy/haproxy.cfg.template \
+    && grep -Fq 'req.hdr(x-qm-proxy-key),strcmp(txn.qmkey) eq 0' /usr/local/etc/haproxy/haproxy.cfg.template \
+    && grep -Fq 'var(txn.qmkey),length gt 31' /usr/local/etc/haproxy/haproxy.cfg.template \
+    && grep -Fqx '    timeout server 24h' /usr/local/etc/haproxy/haproxy.cfg.template \
+    && test "$(grep -n 'set-var(txn.qmkey)' /usr/local/etc/haproxy/haproxy.cfg.template | cut -d: -f1)" \
+         -lt "$(grep -n 'http-request allow' /usr/local/etc/haproxy/haproxy.cfg.template | head -1 | cut -d: -f1)"

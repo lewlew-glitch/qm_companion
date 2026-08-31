@@ -1,0 +1,29 @@
+# Optional direct app connection over HTTPS.
+# Apply this file after every Compose file that changes `ports`. Files using
+# `ports: !override` must come before it:
+#   docker compose -f docker-compose.example.yml -f docker-compose.mobile.yml up -d --build
+# Set QM_MOBILE_BIND_IP and QM_ADVERTISED_ORIGIN in .env. A Tailscale setup may
+# bind its IP while advertising a stable MagicDNS name.
+# No reverse-proxy, tunnel or Cloudflare support; no automatic LAN/away switching.
+# Changing the origin requires approval and re-pairing:
+#   docker exec qm-companion node src/mobile/rotate-cert.js --confirm
+# See docs/mobile-connection.md for the full setup.
+services:
+  companion:
+    ports:
+      # Run scripts/preflight-mobile.mjs before starting this profile.
+      - "${QM_MOBILE_BIND_IP:?QM_MOBILE_BIND_IP is required by docker-compose.mobile.yml: the Docker host IP to publish 8788 on, for example 192.168.1.20}:8788:8788"
+    environment:
+      MOBILE_API_ENABLED: "true"
+      # Set to false to pause new pairings.
+      MOBILE_ENROLMENT_ENABLED: "${MOBILE_ENROLMENT_ENABLED:-true}"
+      # Exact HTTPS origin used by the phone.
+      QM_ADVERTISED_ORIGIN: "${QM_ADVERTISED_ORIGIN:?QM_ADVERTISED_ORIGIN is required by docker-compose.mobile.yml: the exact https origin the phone connects to, for example https://192.168.1.20:8788}"
+      MOBILE_PORT: "8788"
+      # Inside the container only. The published address above is what limits exposure.
+      MOBILE_BIND_ADDRESS: "0.0.0.0"
+      # One-boot reset for a copied installation. See docs/recovery.md.
+      # QM_CLONE_AS_NEW: "paste the 32 hex characters here"
+    # Owner-supplied certificate only. Leave this commented to use the generated certificate.
+    # volumes:
+    #   - ./tls:/data/tls:ro

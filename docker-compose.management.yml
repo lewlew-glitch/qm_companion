@@ -1,0 +1,11 @@
+# Optional install profile. Use this after docker-compose.example.yml to make Management selectable
+# in the Companion navigation. The active mode still starts at Read only until the owner raises it.
+services:
+  socket-proxy:
+    environment:
+      POST: 1
+      EXEC: 0
+
+  companion:
+    environment:
+      DOCKER_ACCESS_MAX: "manage"
