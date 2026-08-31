@@ -14,6 +14,14 @@ The standard setup transfer does not route app traffic through Companion. After 
 - Supports one owner account, two-factor authentication, session revocation, and recovery codes.
 - Runs without telemetry or a hosted account dependency.
 
+## Screenshots
+
+![Dashboard overview](docs/screenshots/dashboard-overview.png)
+
+| Live monitoring | Compose stacks |
+| --- | --- |
+| ![Dashboard live monitoring](docs/screenshots/live-monitoring.png) | ![Compose stack management](docs/screenshots/compose-stacks.png) |
+
 ## Quick install
 
 Clone the complete repository and edit `docker-compose.example.yml` before starting it:

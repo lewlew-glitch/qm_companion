@@ -1,5 +1,20 @@
+# Saltbox override for docker-compose.example.yml. Do not run this file on its own.
+#
+# Add these values to the .env created during the main quick install:
+#   QM_HOST=192.0.2.10
+#   QM_COMPANION_DOMAIN=companion.example.com
+#   QM_TRAEFIK_CERTRESOLVER=cfdns
+#
+# Then start Companion with:
+#   docker compose -f docker-compose.example.yml -f docker-compose.saltbox.yml up -d --build
+#
+# ${NAME:?message} reads NAME from .env and stops with that message if it is missing.
+# !override replaces an inherited list instead of appending to it. This requires
+# Docker Compose 2.24.4 or newer.
+
 services:
   companion:
+    # Remove the base file's host port; Traefik is the only browser entry point.
     ports: !override []
     environment:
       QM_HOST: "${QM_HOST:?QM_HOST is required by docker-compose.saltbox.yml}"

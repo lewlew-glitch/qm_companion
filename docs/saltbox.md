@@ -2,9 +2,13 @@
 
 Only Companion joins the external `saltbox` network. Traefik terminates HTTPS and forwards requests to port 8787 inside the container; the host does not publish that port. The Docker proxy stays on `qm-internal`, publishes no port and remains the only service with the Docker socket mounted.
 
+`docker-compose.saltbox.yml` is an override for `docker-compose.example.yml`, not a standalone Compose file. The base file supplies Companion, the authenticated Docker proxy, health checks, security settings and persistent storage. The Saltbox file changes only the routing, networks and mounts needed behind Traefik.
+
+Use Docker Compose 2.24.4 or newer. Check the installed version with `docker compose version`.
+
 ## Configure the address
 
-Add the Saltbox host, Companion domain and certificate resolver to `.env`. Replace the example address and domain with values from this installation:
+Complete the main [Quick install](../README.md#quick-install) first so `.env` already contains `SECRET_KEY` and `QM_PROXY_KEY`. Then add the Saltbox host, Companion domain and certificate resolver. Replace the example address and domain with values from this installation:
 
 ```sh
 QM_HOST=192.0.2.10
@@ -13,6 +17,10 @@ QM_TRAEFIK_CERTRESOLVER=cfdns
 ```
 
 `QM_HOST` is the LAN or Tailscale address used when Companion suggests service routes. `QM_COMPANION_DOMAIN` is the host name handled by Traefik and must not include a scheme or path. Use the certificate resolver configured by this Saltbox installation; common values are `cfdns` and `httpresolver`.
+
+Compose expressions such as `${QM_HOST:?QM_HOST is required}` read the named value from `.env`. Everything after `:?` is only the error shown when the value is missing; it is not part of the setting. `ports: !override []` replaces the port list inherited from the base file with an empty list, so port 8787 is not exposed directly on the host. The other `!override` entries replace the example mounts and networks instead of adding to them.
+
+Saltbox's generated custom-container file is a generic starting point, not a replacement for the base file. Keep the service name `companion` so the files merge correctly, keep `qm-data:/data` for application state, and retain the supplied `socket-proxy` service through the base file.
 
 The overlay sets `TRUST_PROXY=true` because Traefik terminates HTTPS. Companion uses `X-Forwarded-Proto` when creating setup links and marks its session cookie Secure. Forwarded client addresses are not used for login throttling.
 
