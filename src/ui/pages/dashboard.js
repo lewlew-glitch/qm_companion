@@ -242,10 +242,10 @@ function dockerDownNote() {
     const bare = authority.startsWith('[') ? authority.slice(0, authority.indexOf(']') + 1) : authority.split(':')[0];
     const service = /^[a-z][a-z0-9_-]*$/i.test(bare) && bare.toLowerCase() !== 'localhost' ? bare : '';
     if (!service) return `Nothing is answering at <code class="mono">${escapeHtml(host)}</code>. <code class="mono">DOCKER_HOST</code> points there, so check that address from this container.`;
-    return `Nothing is answering at <code class="mono">${escapeHtml(host)}</code>. Start <code class="mono">${escapeHtml(service)}</code> with <code class="mono">docker compose -f docker-compose.example.yml up -d ${escapeHtml(service)}</code>. Include the same <code class="mono">-f</code> overlays in the same order.`;
+    return `Nothing is answering at <code class="mono">${escapeHtml(host)}</code>. Start <code class="mono">${escapeHtml(service)}</code> with <code class="mono">docker compose -f docker-compose.example.yml up -d --build ${escapeHtml(service)}</code>. Include the same <code class="mono">-f</code> overlays in the same order.`;
   }
   const path = host.replace(/^unix:\/\//, '') || '/var/run/docker.sock';
-  return `No Docker socket at <code class="mono">${escapeHtml(path)}</code>. Mount <code class="mono">- ${escapeHtml(path)}:${escapeHtml(path)}:ro</code> on the companion service, then run <code class="mono">docker compose -f docker-compose.example.yml up -d companion</code>. Include the same <code class="mono">-f</code> overlays in the same order.`;
+  return `No Docker socket at <code class="mono">${escapeHtml(path)}</code>. Mount <code class="mono">- ${escapeHtml(path)}:${escapeHtml(path)}:ro</code> on the companion service, then run <code class="mono">docker compose -f docker-compose.example.yml up -d --build companion</code>. Include the same <code class="mono">-f</code> overlays in the same order.`;
 }
 
 function environmentPanel(docker) {

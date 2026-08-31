@@ -89,7 +89,7 @@ function noContainers(csrf, meta) {
     ${board('containers', 'Containers', '<span class="count-tag">0</span>', meta)}
     <div class="empty">Docker returned no containers, including stopped containers.
       <br><br>Bring a stack up from the directory holding its compose file:
-      <code class="mono">docker compose -f docker-compose.example.yml up -d</code>.
+      <code class="mono">docker compose -f docker-compose.example.yml up -d --build</code>.
       <br>Repeat every <code class="mono">-f</code> file this install already starts with, in the same
       order.</div>`);
 }
@@ -632,7 +632,7 @@ export function containersPage(containers, control, csrf, shellAccess = false) {
                 + ' the panel, so it will not update ' + (held.length === 1 ? 'it' : 'them') + ' from inside itself. On the server: '));
               var cmd = document.createElement('code');
               cmd.className = 'mono';
-              cmd.textContent = 'docker compose -f docker-compose.example.yml up -d --pull always';
+              cmd.textContent = 'docker compose -f docker-compose.example.yml up -d --build --pull always';
               self.appendChild(cmd);
               self.appendChild(document.createTextNode(', repeating every -f file this install already starts with, in the same order.'));
             }

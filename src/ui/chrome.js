@@ -79,7 +79,7 @@ const MODE_INSTALL = {
 function dockerModeReason(mode) {
   const install = MODE_INSTALL[mode];
   if (!install) return 'This mode is above the installed maximum.';
-  return `Not installed. ${code(install.file)} sets ${code(`DOCKER_ACCESS_MAX: ${mode}`)} on Companion and ${install.proxy()} on the socket proxy. Recreate both with ${code(`docker compose -f docker-compose.example.yml -f ${install.file} up -d`)}. ${KEEP_F_LIST}`;
+  return `Not installed. ${code(install.file)} sets ${code(`DOCKER_ACCESS_MAX: ${mode}`)} on Companion and ${install.proxy()} on the socket proxy. Recreate both with ${code(`docker compose -f docker-compose.example.yml -f ${install.file} up -d --build`)}. ${KEEP_F_LIST}`;
 }
 
 function dockerModeOption(access, mode, title, description) {
@@ -389,7 +389,7 @@ export function proxyBlocked(active, icon, title, flag, csrf) {
     ? [
       'The socket proxy is blocking this.',
       transport.service
-        ? `${set} in the environment of the ${code(transport.service)} service in your compose file, then ${code(`docker compose -f docker-compose.example.yml up -d ${transport.service}`)}.`
+        ? `${set} in the environment of the ${code(transport.service)} service in your compose file, then ${code(`docker compose -f docker-compose.example.yml up -d --build ${transport.service}`)}.`
         : `${set} on the Docker proxy answering at ${code(transport.host)}, then recreate that container.`,
       transport.service ? SAME_F_LIST : '',
     ]
@@ -412,14 +412,14 @@ export function noSocket(active, icon, title, csrf) {
     ? [
       `Nothing is answering at ${code(transport.host)}.`,
       transport.service
-        ? `${code('DOCKER_HOST')} points at the ${code(transport.service)} service, so that container is down or still starting, not a socket mount missing from this one. Start it: ${code(`docker compose -f docker-compose.example.yml up -d ${transport.service}`)}.`
+        ? `${code('DOCKER_HOST')} points at the ${code(transport.service)} service, so that container is down or still starting, not a socket mount missing from this one. Start it: ${code(`docker compose -f docker-compose.example.yml up -d --build ${transport.service}`)}.`
         : `${code('DOCKER_HOST')} points there, so the Docker proxy at that address is down or unreachable from this container. Nothing is missing from this container's mounts.`,
       transport.service ? SAME_F_LIST : '',
     ]
     : transport.kind === 'socket'
       ? [
         `No Docker socket at ${code(transport.path)}.`,
-        `Add ${code(`- ${transport.path}:${transport.path}:ro`)} under ${code('volumes:')} on the companion service in your compose file, then ${code('docker compose -f docker-compose.example.yml up -d companion')}.`,
+        `Add ${code(`- ${transport.path}:${transport.path}:ro`)} under ${code('volumes:')} on the companion service in your compose file, then ${code('docker compose -f docker-compose.example.yml up -d --build companion')}.`,
         SAME_F_LIST,
       ]
       : [

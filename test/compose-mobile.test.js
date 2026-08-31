@@ -14,8 +14,8 @@ const withNas = (combos) => combos.filter((files) => haveNas || !files.includes(
 
 const DUMMY_SECRET = 'dd'.repeat(32);
 const DUMMY_PROXY_KEY = 'ee'.repeat(32);
-const LAN = { QM_MOBILE_BIND_IP: '192.168.1.20', QM_ADVERTISED_ORIGIN: 'https://192.168.1.20:8788', SECRET_KEY: DUMMY_SECRET, QM_PROXY_KEY: DUMMY_PROXY_KEY };
-const TAILSCALE = { QM_MOBILE_BIND_IP: '100.100.20.5', QM_ADVERTISED_ORIGIN: 'https://nas.tail1a2b3c.ts.net:8788', SECRET_KEY: DUMMY_SECRET, QM_PROXY_KEY: DUMMY_PROXY_KEY };
+const LAN = { QM_HOST: '192.168.1.20', QM_MOBILE_BIND_IP: '192.168.1.20', QM_ADVERTISED_ORIGIN: 'https://192.168.1.20:8788', SECRET_KEY: DUMMY_SECRET, QM_PROXY_KEY: DUMMY_PROXY_KEY };
+const TAILSCALE = { QM_HOST: '100.100.20.5', QM_MOBILE_BIND_IP: '100.100.20.5', QM_ADVERTISED_ORIGIN: 'https://nas.tail1a2b3c.ts.net:8788', SECRET_KEY: DUMMY_SECRET, QM_PROXY_KEY: DUMMY_PROXY_KEY };
 
 const COMBINATIONS = withNas([
   ['example'],
@@ -154,7 +154,9 @@ test('preserves the supplied values for every mobile combination', { skip: !have
     const { ports, environment, stdout } = companion(files);
     const label = files.join('+');
     const mobile = ports.find((p) => p.target === '8788');
-    const panel = ports.find((p) => p.target === '8787');
+    const panelTarget = files.includes('nas') ? '18787' : '8787';
+    const panel = ports.find((p) => p.target === panelTarget);
+    assert.equal(environment.PORT || '8787', panelTarget, `${label}: the listener and published panel port agree`);
     assert.ok(panel, `${label}: the panel is still published`);
     assert.ok(mobile, `${label}: the mobile listener is published`);
     assert.equal(mobile.hostIp, LAN.QM_MOBILE_BIND_IP, `${label}: the 8788 publish uses the supplied host IP`);

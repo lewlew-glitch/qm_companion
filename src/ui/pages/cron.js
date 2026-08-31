@@ -39,7 +39,7 @@ export function cronPage(jobs, containers, control, csrf, err, shellAccess = fal
   const neededMode = lockedJobs.some((j) => requiredMode(j) === 'shell') ? 'shell' : 'manage';
   const overlayFile = neededMode === 'shell' ? 'docker-compose.shell.yml' : 'docker-compose.management.yml';
   const lockedNote = lockedJobs.length
-    ? `<p class="sub">${lockedJobs.length} job${lockedJobs.length === 1 ? '' : 's'} here need${lockedJobs.length === 1 ? 's' : ''} more Docker access than this Companion has. Choose ${modeLabel[neededMode]} under Docker access. If that mode is unavailable, recreate with <code class="mono">docker compose -f docker-compose.example.yml -f ${overlayFile} up -d</code>. Keep the same <code class="mono">-f</code> files in the same order.</p>`
+    ? `<p class="sub">${lockedJobs.length} job${lockedJobs.length === 1 ? '' : 's'} here need${lockedJobs.length === 1 ? 's' : ''} more Docker access than this Companion has. Choose ${modeLabel[neededMode]} under Docker access. If that mode is unavailable, recreate with <code class="mono">docker compose -f docker-compose.example.yml -f ${overlayFile} up -d --build</code>. Keep the same <code class="mono">-f</code> files in the same order.</p>`
     : '';
   const hid = (id) => `<input type="hidden" name="id" value="${escapeHtml(id)}"><input type="hidden" name="csrf" value="${escapeHtml(csrf)}">`;
   const rows = jobs.map((j) => {

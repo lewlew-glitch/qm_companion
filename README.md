@@ -7,7 +7,7 @@ The standard setup transfer does not route app traffic through Companion. After 
 ## Features
 
 - Discovers multiple service instances from approved config files and Docker.
-- Transfers service addresses and API keys through a short-lived encrypted setup package.
+- Transfers service addresses and API keys through a shorttlived encrypted setup package.
 - Shows containers, stacks, images, volumes, networks, events, logs, and resource use.
 - Provides optional Docker lifecycle controls, image operations, Compose deployment, scheduled jobs, and an in-container shell.
 - Stores credentials in authenticated encrypted state.
@@ -68,6 +68,8 @@ docker compose -f docker-compose.example.yml logs companion
 
 Use a trusted private network for plain HTTP. Put Companion behind a trusted HTTPS reverse proxy before exposing the panel beyond that network.
 
+Saltbox installations can use the supplied Traefik overlay; see [Saltbox](docs/saltbox.md).
+
 ## Docker access profiles
 
 The Compose profile sets the maximum Docker access available to Companion:
@@ -110,6 +112,7 @@ Read [Security model](docs/security-model.md) before exposing the panel or enabl
 
 - [Docker access](docs/docker-access.md)
 - [Mobile connections](docs/mobile-connection.md)
+- [Saltbox](docs/saltbox.md)
 - [TLS and certificates](docs/tls-and-certificates.md)
 - [Backup and recovery](docs/recovery.md)
 - [Security model](docs/security-model.md)

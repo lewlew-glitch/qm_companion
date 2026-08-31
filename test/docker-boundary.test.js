@@ -295,12 +295,24 @@ test('the port parser refuses an address it could not honour', async () => {
   }
 });
 
-test('documented recreate commands rebuild the proxy image', () => {
-  for (const file of ['README.md', 'docs/mobile-connection.md', 'docs/tls-and-certificates.md']) {
+test('public Companion recreate commands rebuild the local images', () => {
+  for (const file of [
+    'README.md',
+    'docs/mobile-connection.md',
+    'docs/tls-and-certificates.md',
+    'src/ui/chrome.js',
+    'src/ui/pages/console.js',
+    'src/ui/pages/containers.js',
+    'src/ui/pages/cron.js',
+    'src/ui/pages/dashboard.js',
+    'src/ui/pages/images.js',
+    'src/ui/pages/settings.js',
+    'src/ui/pages/volumes.js',
+  ]) {
     const guide = readFileSync(join(projectRoot, file), 'utf8');
     for (const line of guide.split('\n')) {
       if (line.includes('docker compose') && line.includes(' up -d')) {
-        assert.ok(line.includes('--build'), `${file} documents a recreate without --build: ${line}`);
+        assert.ok(line.includes('--build'), `${file} exposes a recreate without --build: ${line}`);
       }
     }
   }

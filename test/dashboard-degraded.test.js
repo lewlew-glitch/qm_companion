@@ -155,7 +155,7 @@ test('Docker being unavailable names the address, the cause and the command', ()
   assert.doesNotMatch(connection, /Service discovery and phone setup remain available\.<\/small>/);
   assert.match(connection, /No Docker socket at <code class="mono">\/var\/run\/docker\.sock<\/code>/);
   assert.match(connection, /- \/var\/run\/docker\.sock:\/var\/run\/docker\.sock:ro/);
-  assert.match(connection, /up -d companion/);
+  assert.match(connection, /up -d --build companion/);
   assert.match(connection, /same <code class="mono">-f<\/code> overlays in the same order/);
   assert.doesNotMatch(connection, />docker compose up -d</);
 });

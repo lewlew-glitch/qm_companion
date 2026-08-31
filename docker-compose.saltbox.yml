@@ -1,0 +1,28 @@
+services:
+  companion:
+    ports: !override []
+    environment:
+      QM_HOST: "${QM_HOST:?QM_HOST is required by docker-compose.saltbox.yml}"
+      TRUST_PROXY: "true"
+    volumes: !override
+      - qm-data:/data
+    networks: !override [qm-internal, qm-egress, saltbox]
+    labels:
+      com.github.saltbox.saltbox_managed: "true"
+      traefik.enable: "true"
+      traefik.docker.network: "saltbox"
+      traefik.http.routers.qm-companion-http.entrypoints: "web"
+      traefik.http.routers.qm-companion-http.rule: "Host(`${QM_COMPANION_DOMAIN:?QM_COMPANION_DOMAIN is required by docker-compose.saltbox.yml}`)"
+      traefik.http.routers.qm-companion-http.middlewares: "redirect-to-https@docker"
+      traefik.http.routers.qm-companion-http.service: "qm-companion"
+      traefik.http.routers.qm-companion.entrypoints: "websecure"
+      traefik.http.routers.qm-companion.rule: "Host(`${QM_COMPANION_DOMAIN:?QM_COMPANION_DOMAIN is required by docker-compose.saltbox.yml}`)"
+      traefik.http.routers.qm-companion.service: "qm-companion"
+      traefik.http.routers.qm-companion.tls: "true"
+      traefik.http.routers.qm-companion.tls.certresolver: "${QM_TRAEFIK_CERTRESOLVER:?QM_TRAEFIK_CERTRESOLVER is required by docker-compose.saltbox.yml}"
+      traefik.http.routers.qm-companion.tls.options: "securetls@file"
+      traefik.http.services.qm-companion.loadbalancer.server.port: "8787"
+
+networks:
+  saltbox:
+    external: true

@@ -136,7 +136,7 @@ test('renders image update guidance and dismissal', () => {
   assert.match(html, /if \(updall\) updall\.classList\.toggle\('hidden', pending\.length === 0\)/);
   assert.match(html, /id="updself"/);
   assert.match(html, /the panel, so it will not update/);
-  assert.match(html, /docker compose -f docker-compose\.example\.yml up -d --pull always/);
+  assert.match(html, /docker compose -f docker-compose\.example\.yml up -d --build --pull always/);
 });
 
 test('hides destructive actions after a page becomes empty', () => {

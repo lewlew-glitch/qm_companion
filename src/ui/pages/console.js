@@ -263,7 +263,7 @@ export function consolePage(containers, sel, control, csrf, shellAccess = false)
               twrite('[' + (res.d.error ? String(res.d.error) : 'the server refused this command (' + res.status + ')') + ']');
               if (res.status === 403 && /shell/i.test(String(res.d.error || ''))) {
                 shellLocked = true;
-                twrite('Choose Management + shell under Docker access in the sidebar. If it is unavailable, recreate with docker compose -f docker-compose.example.yml -f docker-compose.shell.yml up -d, keeping every other -f file this install already starts with, in the same order.');
+                twrite('Choose Management + shell under Docker access in the sidebar. If it is unavailable, recreate with docker compose -f docker-compose.example.yml -f docker-compose.shell.yml up -d --build, keeping every other -f file this install already starts with, in the same order.');
               } else if (res.status === 401) {
                 twrite('Session expired. Reload the page and sign in again.');
               }

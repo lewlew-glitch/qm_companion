@@ -60,7 +60,7 @@ export function settingsPage(cfg, dockerOk, csrf, prefs, tab, dockerAccess = doc
     shell: { overlay: '', move: 'drop it back to Read only' },
   };
   const next = NEXT[dockerAccess.ceiling] || NEXT.read;
-  const recreate = `docker compose -f docker-compose.example.yml${next.overlay ? ` -f ${next.overlay}` : ''} up -d`;
+  const recreate = `docker compose -f docker-compose.example.yml${next.overlay ? ` -f ${next.overlay}` : ''} up -d --build`;
   const keepList = next.overlay
     ? 'Keep every other -f file this install already starts with, in the same order.'
     : 'Drop only the access overlay and keep every other -f file this install starts with, in the same order.';

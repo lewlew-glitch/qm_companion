@@ -10,7 +10,7 @@ function noVolumes(csrf) {
     <div class="empty">Docker returned no volumes.
       <br><br>A named volume is created the first time a container that mounts it starts. Add it under
       <code class="mono">volumes:</code> in your compose file, then bring the stack up:
-      <code class="mono">docker compose -f docker-compose.example.yml up -d</code>.
+      <code class="mono">docker compose -f docker-compose.example.yml up -d --build</code>.
       <br>Repeat every <code class="mono">-f</code> file this install already starts with, in the same order.</div>`);
 }
 

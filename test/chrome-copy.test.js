@@ -86,11 +86,11 @@ test('TCP DOCKER_HOST omits local socket-mount instructions', () => {
   assert.doesNotMatch(gone, /This lights up when the companion runs on your server with the socket mounted/);
   assert.match(gone, /tcp:\/\/socket-proxy:2375/, 'it names the address that is silent');
   assert.match(gone, /socket-proxy<\/code> service/, 'and the compose service behind it');
-  assert.match(gone, /up -d socket-proxy/, 'and the command that starts it');
+  assert.match(gone, /up -d --build socket-proxy/, 'and the command that starts it');
 
   assert.match(blocked, /CONTAINERS: 1/);
   assert.match(blocked, /socket-proxy<\/code> service/);
-  assert.match(blocked, /docker compose -f docker-compose\.example\.yml up -d socket-proxy/);
+  assert.match(blocked, /docker compose -f docker-compose\.example\.yml up -d --build socket-proxy/);
 });
 
 test('a socket path names the volume line that is missing', () => {
@@ -98,7 +98,7 @@ test('a socket path names the volume line that is missing', () => {
   assert.match(gone, /No Docker socket at/);
   assert.match(gone, /- \/var\/run\/docker\.sock:\/var\/run\/docker\.sock:ro/, 'the exact volume line');
   assert.match(gone, /volumes:/);
-  assert.match(gone, /up -d companion/);
+  assert.match(gone, /up -d --build companion/);
   const bare = emptyOf(renderEmptyStates('tcp://127.0.0.1:1').gone);
   assert.doesNotMatch(bare, /service/);
   assert.match(bare, /127\.0\.0\.1:1/);

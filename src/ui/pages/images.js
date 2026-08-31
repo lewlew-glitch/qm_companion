@@ -11,7 +11,7 @@ function noImages(csrf) {
     <div class="empty">Docker returned no images.
       <br><br>Pull an image or start a stack on the server:
       <code class="mono">docker pull lscr.io/linuxserver/radarr:latest</code>, or
-      <code class="mono">docker compose -f docker-compose.example.yml up -d</code>, repeating every
+      <code class="mono">docker compose -f docker-compose.example.yml up -d --build</code>, repeating every
       <code class="mono">-f</code> file this install already starts with, in the same order.</div>`);
 }
 
