@@ -12,6 +12,7 @@ process.env.QM_STACK = '/mnt/user/appdata';
 process.env.DOCKER_ACCESS_MAX = 'read';
 
 const { dashboardPage } = await import('../src/ui/pages/dashboard.js');
+const { config } = await import('../src/config.js');
 
 const NO_LIVE = { now: [], arr: [] };
 const COUNTS = { total: 12, running: 7, paused: 0, restarting: 0, unhealthy: 0, healthy: 0, starting: 0 };
@@ -147,17 +148,32 @@ test('missing Docker counts produce an empty shell state', () => {
   assert.match(html, /Container figures unavailable/);
 });
 
-test('Docker being unavailable names the address, the cause and the command', () => {
+test('Docker being unavailable names the transport without assuming Compose', () => {
   const html = dashboardPage([], NO_LIVE, { counts: null, info: null, events: null, containers: null }, 'csrf');
   const connection = block(html, '<div class="de-connection">');
 
   assert.match(connection, /Docker unavailable/);
   assert.doesNotMatch(connection, /Service discovery and phone setup remain available\.<\/small>/);
   assert.match(connection, /No Docker socket at <code class="mono">\/var\/run\/docker\.sock<\/code>/);
-  assert.match(connection, /- \/var\/run\/docker\.sock:\/var\/run\/docker\.sock:ro/);
-  assert.match(connection, /up -d --build companion/);
-  assert.match(connection, /same <code class="mono">-f<\/code> overlays in the same order/);
-  assert.doesNotMatch(connection, />docker compose up -d</);
+  assert.match(connection, /\/var\/run\/docker\.sock:\/var\/run\/docker\.sock:ro/);
+  assert.match(connection, /recreate the container/);
+  assert.doesNotMatch(connection, /docker compose|-f<|up -d/);
+
+  const previous = config.dockerHost;
+  try {
+    config.dockerHost = 'tcp://socket-proxy:2375';
+    const proxied = block(
+      dashboardPage([], NO_LIVE, { counts: null, info: null, events: null, containers: null }, 'csrf'),
+      '<div class="de-connection">',
+    );
+    assert.match(proxied, /tcp:\/\/socket-proxy:2375/);
+    assert.match(proxied, /configured socket proxy/);
+    assert.match(proxied, /running and reachable from Companion/);
+    assert.match(proxied, /Unraid or its Compose project/);
+    assert.doesNotMatch(proxied, /docker compose|up -d/);
+  } finally {
+    config.dockerHost = previous;
+  }
 });
 
 test('host strip omits Live with and without Docker facts', () => {

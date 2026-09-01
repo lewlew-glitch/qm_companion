@@ -96,11 +96,11 @@ function deviceRow(d, csrf, secure) {
 // Secure pages carry device controls; off-profile pages are read-only.
 function planeSetup(reason) {
   if (!/MOBILE_API_ENABLED is not true/.test(String(reason || ''))) return '';
-  return '<div class="kv"><span>Enable mobile access<small>Add <b class="mono">docker-compose.mobile.yml</b>. Set <b class="mono">QM_MOBILE_BIND_IP</b> to a host address and <b class="mono">QM_ADVERTISED_ORIGIN</b> to the HTTPS address phones will use, then recreate Companion. Changing that origin requires pairing phones again.</small></span></div>';
+  return '<div class="kv"><span>Enable mobile access<small>Publish port 8788, then set <b class="mono">MOBILE_API_ENABLED=true</b>, <b class="mono">MOBILE_ENROLMENT_ENABLED=true</b> and <b class="mono">QM_ADVERTISED_ORIGIN</b> to the direct HTTPS address phones use. Recreate Companion and sign in there. Changing the address later requires pairing again.</small></span></div>';
 }
 
 function enrolmentSetup() {
-  return '<div class="kv"><span>Enable new pairings<small>Set <b class="mono">MOBILE_ENROLMENT_ENABLED=true</b> in <b class="mono">.env</b>, then recreate Companion with the same <b class="mono">-f</b> files in the same order. The value must be lowercase <b class="mono">true</b>. Existing pairings are unaffected.</small></span></div>';
+  return '<div class="kv"><span>Enable new pairings<small>Set <b class="mono">MOBILE_ENROLMENT_ENABLED=true</b> in this installation\'s private settings, then recreate Companion. The value must be lowercase <b class="mono">true</b>. Existing pairings are unaffected.</small></span></div>';
 }
 
 // Use one renderer for the full page and live fragment.

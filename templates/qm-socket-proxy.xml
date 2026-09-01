@@ -7,13 +7,13 @@
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
   <Icon>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/src/assets/logo.png</Icon>
-  <Overview>Restricted Docker API proxy for Quartermaster Companion. It keeps the Docker socket out of the main application and does not publish a host port.</Overview>
+  <Overview>Dedicated authenticated Docker API proxy required by Quartermaster Companion. It keeps the Docker socket out of the main application and does not publish a host port.</Overview>
   <Project>https://github.com/lewlew-glitch/qm_companion</Project>
   <TemplateURL>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/templates/qm-socket-proxy.xml</TemplateURL>
   <ReadMe>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/unraid.md</ReadMe>
   <Category>Tools:System</Category>
   <ExtraSearchTerms>quartermaster docker socket proxy</ExtraSearchTerms>
-  <Requires>Install this before qm-companion. Do not publish port 2375. Use the same QM_PROXY_KEY in both templates.</Requires>
+  <Requires>Install before qm-companion. Keep the container name, do not publish port 2375 and use the same QM_PROXY_KEY in both templates.</Requires>
   <License>MIT</License>
   <ExtraParams>--restart=unless-stopped --read-only --cap-drop=ALL --security-opt=no-new-privileges --tmpfs=/tmp:size=4m,mode=1777 --tmpfs=/run:size=1m,mode=0755 --label=qm.protected=true</ExtraParams>
 

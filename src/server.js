@@ -446,7 +446,7 @@ function companionOrigin(req) {
   }
   if (authority.username || authority.password || authority.pathname !== '/') throw new Error('The browser address is not usable for pairing.');
   let protocol = req.socket.encrypted ? 'https:' : 'http:';
-  if (config.trustProxy) {
+  if (!req.socket.encrypted && config.trustProxy) {
     const forwarded = String(req.headers['x-forwarded-proto'] || '').trim().toLowerCase();
     if (forwarded !== 'http' && forwarded !== 'https') throw new Error('The proxy did not provide a usable request scheme.');
     protocol = `${forwarded}:`;
@@ -1239,7 +1239,7 @@ function refuseOnPlaintext(req, res, target, what) {
   const wantsHtml = req.method === 'GET' && (req.headers.accept || '').includes('text/html');
   // Report invalid configuration separately from a failed HTTPS listener.
   const failure = typeof target.failure === 'string' && target.failure ? target.failure : null;
-  const remedy = 'Set QM_ADVERTISED_ORIGIN to an exact HTTPS URL and make its port match MOBILE_PORT in the .env beside docker-compose.mobile.yml. Recreate the stack with the same -f overlay list. To use the plaintext panel instead, set MOBILE_API_ENABLED=false and recreate Companion.';
+  const remedy = 'Set QM_ADVERTISED_ORIGIN to the exact HTTPS URL phones use and keep its port equal to MOBILE_PORT. Make sure that port is published, save the settings and recreate Companion. To use the plaintext panel instead, set MOBILE_API_ENABLED=false and recreate Companion.';
   if (wantsHtml) {
     const destination = failure
       ? `<p>The secure panel did not start, so ${escapeHtml(target.origin || 'its address')} will not answer.</p>

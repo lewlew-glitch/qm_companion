@@ -284,7 +284,7 @@ function identityPart(value) {
   return String(value || '').trim().toLowerCase();
 }
 
-function mountedConfigKind(instanceName) {
+export function mountedConfigKind(instanceName) {
   const name = String(instanceName || '').toLowerCase();
   for (const [alias, kind] of CONFIG_MOUNT_KIND_ALIASES) {
     if (

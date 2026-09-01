@@ -70,24 +70,43 @@ test('counts only transferable services as ready', () => {
   assert.match(configure(DETECTED), /<b>Transfer readiness<\/b><span>1 of 4 detected services is ready for this scan\./);
 });
 
-test('renders paste controls for file credentials', () => {
+test('renders paste and mount controls for file credentials', () => {
   const withoutControl = ladderMarkup('radarr', ladderFor('radarr'), false, false);
   assert.match(withoutControl, /data-manual-key type="password" maxlength="16384"/, 'the paste field is not withheld');
   assert.match(withoutControl, /data-save-key>Save key</);
   assert.match(withoutControl, /<a class="btn pair-open" data-open target="_blank" rel="noopener">Open settings page<\/a>/);
   assert.match(withoutControl, /enable Management \+ shell under Docker access/);
   assert.doesNotMatch(withoutControl, /data-read>/);
-  assert.doesNotMatch(withoutControl, /- \/path:\/stack\/radarr:ro/, 'the dead-end placeholder mount line is gone');
-  assert.match(withoutControl, /Mount Radarr's <code>config\.xml<\/code> read only at <code>\/stack\/radarr<\/code>/);
-  assert.match(withoutControl, /host path or named volume that Radarr mounts at <code>\/config<\/code>/);
-  assert.match(withoutControl, /same <code>docker compose -f<\/code> list you already use, in the same order/);
+  assert.match(withoutControl, /Map only Radarr's <code>config\.xml<\/code> read only to <code>\/stack\/radarr\/config\.xml<\/code>/);
+  assert.match(withoutControl, /- \/your\/host\/path\/to\/radarr\/config\.xml:\/stack\/radarr\/config\.xml:ro/);
+  assert.match(withoutControl, /In Unraid, add the same two paths as a read-only Path/);
+  assert.match(withoutControl, /separate folder beneath <code>\/stack<\/code> for each extra instance/);
+  assert.match(withoutControl, /Recreate Companion, then scan again/);
+  assert.doesNotMatch(withoutControl, /host path or named volume|docker compose -f/);
+});
 
+test('keeps config mounts aligned with service instances', () => {
+  const secondInstance = ladderMarkup('radarr', ladderFor('radarr'), false, false, 'radarr-4k');
+  assert.match(secondInstance, /\/stack\/radarr-4k\/config\.xml/);
+  assert.doesNotMatch(secondInstance, /:\/stack\/radarr\/config\.xml:ro/);
+
+  const alias = ladderMarkup('jellyseerr', ladderFor('jellyseerr'), false, false, 'overseerr-4k');
+  assert.match(alias, /\/stack\/overseerr-4k\/settings\.json/);
+  assert.doesNotMatch(alias, /Automatic file matching is unavailable/);
+
+  const incompatibleName = ladderMarkup('radarr', ladderFor('radarr'), false, false, 'movies-4k');
+  assert.match(incompatibleName, /Automatic file matching is unavailable for this container name/);
+  assert.match(incompatibleName, /Paste the Radarr API key above instead/);
+  assert.doesNotMatch(incompatibleName, /\/stack\/radarr\/config\.xml/);
+});
+
+test('offers container key reads only when shell access is available', () => {
   const withControl = ladderMarkup('jackett', ladderFor('jackett'), true, false);
   assert.match(withControl, /data-manual-key type="password"/);
   assert.match(withControl, /data-read>Read key from container</);
   assert.doesNotMatch(withControl, /enable Management \+ shell/);
   assert.match(withControl, /ServerConfig\.json/);
-  assert.match(withControl, /mounts at <code>\/config\/Jackett<\/code>/);
+  assert.match(withControl, /\/stack\/jackett\/ServerConfig\.json/);
 
   assert.ok(withControl.indexOf('data-read>') < withControl.indexOf('<div class="key-made"'), 'the read control is inside the hideable ladder');
 });

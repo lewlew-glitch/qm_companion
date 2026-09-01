@@ -1,3 +1,4 @@
+import { mountedConfigKind } from '../../detect.js';
 import { escapeHtml } from '../../http.js';
 import { labelFor } from '../../kinds.js';
 import { I } from '../bits.js';
@@ -43,23 +44,29 @@ function pasteKeyMarkup(kind, note, openLabel = 'Open settings page', extra = ''
 }
 
 // Render read-only config mounting instructions for services that support file discovery.
-function mountPanelMarkup(kind, fileRule) {
+function mountPanelMarkup(kind, fileRule, instanceName) {
   const label = labelFor(kind);
   const rule = fileRule || {};
   const target = rule.target || `/stack/${kind}`;
   const fileName = rule.mountedName || 'its config file';
-  const inside = rule.mountHint || '/config';
-  const line = `- /your/host/path/for/${kind}:${target}:ro`;
+  const instance = String(instanceName || '').trim().toLowerCase();
+  const compatibleInstance = mountedConfigKind(instance) === kind;
+  if (instance && !compatibleInstance) {
+    return `<p>Automatic file matching is unavailable for this container name. Paste the ${escapeHtml(label)} API key above instead.</p>`;
+  }
+  const folder = compatibleInstance ? instance : kind;
+  const destination = `${compatibleInstance ? `/stack/${folder}` : target}/${fileName}`;
+  const line = `- /your/host/path/to/${folder}/${fileName}:${destination}:ro`;
   return `<details class="mountpanel">
       <summary>Or mount ${escapeHtml(fileName)} and let Companion read it</summary>
-      <p>Mount ${escapeHtml(label)}'s <code>${escapeHtml(fileName)}</code> read only at <code>${escapeHtml(target)}</code>. Replace the left-hand side below with the host path or named volume that ${escapeHtml(label)} mounts at <code>${escapeHtml(inside)}</code>:</p>
+      <p>Map only ${escapeHtml(label)}'s <code>${escapeHtml(fileName)}</code> read only to <code>${escapeHtml(destination)}</code>. For Compose, replace the first path below with the exact file on the host. In Unraid, add the same two paths as a read-only Path:</p>
       <div class="copyline"><code class="mono" data-copytext="${escapeHtml(line)}">${escapeHtml(line)}</code><button type="button" class="copybtn" data-copy>Copy</button></div>
-      <p>Recreate Companion with the same <code>docker compose -f</code> list you already use, in the same order. The next scan reads the key.</p>
+      <p>Use a separate folder beneath <code>/stack</code> for each extra instance and keep its name aligned with the container name. Recreate Companion, then scan again.</p>
     </details>`;
 }
 
 // Render the available credential methods for one service.
-export function ladderMarkup(kind, rung, control, mintEnabledKinds = []) {
+export function ladderMarkup(kind, rung, control, mintEnabledKinds = [], instanceName = '') {
   const enabledKinds = Array.isArray(mintEnabledKinds) ? mintEnabledKinds : [];
   const made = `<div class="key-made" data-made>${I.check}<span>Key saved in Companion</span><button type="button" data-forget>Remove</button></div>`;
   if (rung.class === 'file') {
@@ -71,7 +78,7 @@ export function ladderMarkup(kind, rung, control, mintEnabledKinds = []) {
       kind,
       `Create or copy the API key in ${label}, then paste it here. Companion seals it and includes it in this scan.`,
       'Open settings page',
-      `${read}${mountPanelMarkup(kind, rung.fileRule)}`,
+      `${read}${mountPanelMarkup(kind, rung.fileRule, instanceName)}`,
     )}${made}`;
   }
   if (rung.class === 'mint' && enabledKinds.includes(kind)) {

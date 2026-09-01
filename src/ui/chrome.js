@@ -411,20 +411,17 @@ export function noSocket(active, icon, title, csrf) {
   const lines = transport.kind === 'proxy'
     ? [
       `Nothing is answering at ${code(transport.host)}.`,
-      transport.service
-        ? `${code('DOCKER_HOST')} points at the ${code(transport.service)} service, so that container is down or still starting, not a socket mount missing from this one. Start it: ${code(`docker compose -f docker-compose.example.yml up -d --build ${transport.service}`)}.`
-        : `${code('DOCKER_HOST')} points there, so the Docker proxy at that address is down or unreachable from this container. Nothing is missing from this container's mounts.`,
-      transport.service ? SAME_F_LIST : '',
+      `${code('DOCKER_HOST')} points there, so check that the configured socket proxy is running and reachable from Companion.`,
+      'Restart the socket proxy from Unraid or its Compose project.',
     ]
     : transport.kind === 'socket'
       ? [
         `No Docker socket at ${code(transport.path)}.`,
-        `Add ${code(`- ${transport.path}:${transport.path}:ro`)} under ${code('volumes:')} on the companion service in your compose file, then ${code('docker compose -f docker-compose.example.yml up -d --build companion')}.`,
-        SAME_F_LIST,
+        `Mount ${code(`${transport.path}:${transport.path}:ro`)} on Companion, then recreate the container.`,
       ]
       : [
         'No Docker socket reachable from here.',
-        'This lights up when the companion runs on your server with the socket mounted.',
+        'Configure a reachable socket proxy or mount the Docker socket read only on Companion, then recreate Companion.',
       ];
   return socketEmpty(active, title, csrf, null, lines);
 }

@@ -15,6 +15,13 @@ function preflight(env) {
   });
 }
 
+function preflightBlock(guide) {
+  const match = guide.match(/```sh\n(\([\s\S]*?node scripts\/preflight-mobile\.mjs[\s\S]*?\))\n```/);
+  assert.ok(match, 'the preflight runs in a subshell');
+  assert.doesNotMatch(match[1], /\bunset\b/, 'the parent shell environment is untouched');
+  return match[1];
+}
+
 test('preflight accepts an address assigned to the host', () => {
   const ok = preflight({ QM_MOBILE_BIND_IP: '127.0.0.1', QM_ADVERTISED_ORIGIN: 'https://127.0.0.1:8788' });
   assert.equal(ok.status, 0, ok.stdout + ok.stderr);
@@ -59,4 +66,23 @@ test('mobile guide separates publish and listener failures', () => {
   assert.match(guide, /Docker refuses to start the container and port 8787 is unavailable as well/);
   assert.match(guide, /internal listener may still report healthy/);
   assert.match(guide, /scripts\/preflight-mobile\.mjs/);
+  assert.match(guide, /address owned only by a container/);
+  assert.match(guide, /without a host `tailscale0` address/);
+  assert.match(guide, /Enter `8788` in Mobile HTTPS port/);
+  assert.match(guide, /`QM_MOBILE_BIND_IP` is used only to build the host-side port mapping in Docker Compose/);
+  assert.match(guide, /normal port 8787 reverse-proxy address cannot be used for sign-in/);
+  assert.match(guide, /does not restrict the listener to Tailscale/);
+  preflightBlock(guide);
+});
+
+test('Saltbox contains the preflight environment and runs it before deployment', () => {
+  const guide = readFileSync(join(root, 'docs', 'saltbox.md'), 'utf8');
+  const preflight = guide.indexOf('node scripts/preflight-mobile.mjs');
+  const deploy = guide.indexOf('docker-compose.saltbox.yml -f docker-compose.mobile.yml up -d --build');
+  assert.notEqual(preflight, -1);
+  assert.notEqual(deploy, -1);
+  assert.ok(preflight < deploy, 'the preflight appears before the mobile start command');
+  preflightBlock(guide);
+  assert.match(guide, /address that is assigned to the Docker host/);
+  assert.match(guide, /Tailscale container or userspace network/);
 });

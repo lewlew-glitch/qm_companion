@@ -884,23 +884,8 @@ test('stack metrics poll without a host Live label', () => {
   assert.ok(compileInlineScripts(html) >= 3);
 });
 
-test('renders mobile enablement guidance', async () => {
+test('does not show enablement steps for other mobile listener failures', async () => {
   const { devicesPage } = await import('../src/ui/pages/devices.js');
-  const off = devicesPage(
-    {
-      plane: { ok: false, reason: 'MOBILE_API_ENABLED is not true; the mobile plane is off.' },
-      enrolments: [], devices: [], identity: { fingerprint: 'ab'.repeat(32) }, secure: false,
-    },
-    'csrf-token', null, null, null,
-  );
-  assert.match(off, /docker-compose\.mobile\.yml/, 'names the overlay that turns it on');
-  assert.match(off, /QM_MOBILE_BIND_IP/);
-  assert.match(off, /QM_ADVERTISED_ORIGIN/);
-  assert.match(off, /Changing that origin requires pairing phones again/, 'and explains the effect of an origin change');
-  assert.equal((off.match(/MOBILE_API_ENABLED is not true/g) || []).length, 1);
-  assert.doesNotMatch(off, /Compare this with the phone as it pairs/);
-  assert.match(off, /(?:ab){16}/);
-
   const misconfigured = devicesPage(
     {
       plane: { ok: false, reason: 'QM_ADVERTISED_ORIGIN port 9999 does not match the listener port 8788; the advertised origin must be the address phones reach.' },
@@ -908,7 +893,7 @@ test('renders mobile enablement guidance', async () => {
     },
     'csrf-token', null, null, null,
   );
-  assert.doesNotMatch(misconfigured, /docker-compose\.mobile\.yml/);
+  assert.doesNotMatch(misconfigured, /Publish port 8788|MOBILE_API_ENABLED=true|docker-compose\.mobile\.yml/);
 });
 
 test('preserves unknown resource counts and confirmation', () => {

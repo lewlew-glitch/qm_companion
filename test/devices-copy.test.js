@@ -28,10 +28,10 @@ test('shows pairing enable instructions when pairing is off', () => {
   const html = render({ plane: PAIRING_OFF });
 
   assert.match(html, /MOBILE_ENROLMENT_ENABLED=true/);
-  assert.match(html, /<b class="mono">\.env<\/b>/, 'and names the private file it belongs in');
+  assert.match(html, /installation's private settings/);
   assert.match(html, /must be lowercase <b class="mono">true<\/b>/);
   assert.match(html, /Existing pairings are unaffected/);
-  assert.match(html, /same <b class="mono">-f<\/b> files in the same order/);
+  assert.match(html, /recreate Companion/);
   assert.doesNotMatch(html, /docker compose up -d/);
 
   assert.doesNotMatch(html, /Nothing waiting\. Create a pairing key to add a phone\./);
@@ -48,9 +48,14 @@ test('pairing instructions appear only while pairing is disabled', () => {
   assert.match(render(), /Compare this with the phone as it pairs/);
   assert.match(render(), /Nothing waiting\. Create a pairing key to add a phone\./);
 
-  const down = render({ plane: { ok: false, reason: 'MOBILE_API_ENABLED is not true; the mobile plane is off.' } });
-  assert.doesNotMatch(down, /MOBILE_ENROLMENT_ENABLED/);
-  assert.match(down, /No pending pairings\. The mobile listener is off/);
+  const down = render({ secure: false, plane: { ok: false, reason: 'MOBILE_API_ENABLED is not true; the mobile plane is off.' } });
+  assert.match(down, /MOBILE_ENROLMENT_ENABLED=true/);
+  assert.match(down, /Publish port 8788/);
+  assert.match(down, /MOBILE_API_ENABLED=true/);
+  assert.match(down, /QM_ADVERTISED_ORIGIN/);
+  assert.match(down, /Recreate Companion and sign in there/);
+  assert.doesNotMatch(down, /docker-compose\.mobile\.yml|QM_MOBILE_BIND_IP/);
+  assert.doesNotMatch(down, /Pending pairings/);
 });
 
 test('flash styling follows outcome severity', () => {

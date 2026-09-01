@@ -5,7 +5,7 @@ Companion supports two independent ways to configure and connect Quartermaster:
 - A short-lived setup transfer containing service addresses and credentials.
 - An optional persistent HTTPS connection to Companion for its native Docker overview.
 
-The setup transfer does not relay later service traffic. The persistent connection is enabled separately with `docker-compose.mobile.yml`.
+The setup transfer does not relay later service traffic. The persistent connection is enabled separately with the mobile Compose overlay or the Unraid advanced settings.
 
 ## Service setup transfer
 
@@ -52,13 +52,13 @@ The connection supports one exact origin from `QM_ADVERTISED_ORIGIN`. A direct L
 
 When the profile is enabled, HTTPS 8788 serves the owner panel and mobile API. Plain HTTP exposes only the limited health and static responses; it does not expose setup, sign-in, owner, device, or API data and does not accept management requests.
 
-### Required addresses
+### Compose addresses
 
-The profile requires two values:
+The Compose profile requires two values:
 
 | Value | Meaning |
 | --- | --- |
-| `QM_MOBILE_BIND_IP` | An IP address assigned to the Docker host where port 8788 is published. Use a LAN or Tailscale IP, not a DNS name or `0.0.0.0`. |
+| `QM_MOBILE_BIND_IP` | A LAN or Tailscale IP assigned to the Docker host where port 8788 is published. Do not use a DNS name, `0.0.0.0`, another device's address, or an address owned only by a container. |
 | `QM_ADVERTISED_ORIGIN` | The exact `https://host:port` reached by the phone. It is recorded in pairings and supplies the certificate host. |
 
 A LAN deployment commonly uses one address for both values:
@@ -75,16 +75,19 @@ QM_MOBILE_BIND_IP=100.100.20.5
 QM_ADVERTISED_ORIGIN=https://nas.tail1a2b3c.ts.net:8788
 ```
 
+This requires Tailscale to create the address on the Docker host. If Tailscale runs in a container or userspace mode without a host `tailscale0` address, Docker cannot bind port 8788 to that IP. Run Tailscale on the host with kernel networking or use a host-owned LAN address instead.
+
 Store these values in the same private `.env` source used by the base installation. Do not add a second `SECRET_KEY` to the mobile overlay.
 
 Run the host preflight before deployment:
 
 ```sh
-set -a
-. ./.env
-set +a
-node scripts/preflight-mobile.mjs
-unset QM_MOBILE_BIND_IP QM_ADVERTISED_ORIGIN MOBILE_PORT SECRET_KEY QM_PROXY_KEY
+(
+  set -a
+  . ./.env
+  set +a
+  node scripts/preflight-mobile.mjs
+)
 ```
 
 The preflight checks that the bind IP belongs to the host, rejects wildcard addresses, and checks the origin port against `MOBILE_PORT`.
@@ -107,6 +110,16 @@ docker compose -f docker-compose.example.yml -f docker-compose.management.yml -f
 
 Repeat the same file list and order for later recreates. Custom files that replace `ports` belong before the mobile overlay.
 
+### Unraid
+
+The Community Apps template provides the mobile listener settings under Advanced View. Enter `8788` in Mobile HTTPS port, keep the listener port and bind address at `8788` and `0.0.0.0`, and enter the exact direct LAN or Tailscale HTTPS origin. Set Persistent mobile connection to `true`, then apply the template.
+
+`QM_MOBILE_BIND_IP` is used only to build the host-side port mapping in Docker Compose. Do not add it as a container variable in Unraid; the Mobile HTTPS port field supplies that mapping instead.
+
+When enabled, browser sign-in moves to `QM_ADVERTISED_ORIGIN` on port 8788. Open that exact address to manage devices and pair the phone. The normal port 8787 reverse-proxy address cannot be used for sign-in while the persistent listener is enabled.
+
+The Unraid bridge mapping publishes port 8788 on the server's interfaces. A Tailscale origin does not restrict the listener to Tailscale, so use host firewall rules if LAN access should be blocked.
+
 ### Pair a phone
 
 1. Sign in through HTTPS and open **Devices**.
@@ -123,7 +136,9 @@ Set `MOBILE_ENROLMENT_ENABLED=false` between pairings if new enrolment should be
 
 ### Failure behavior
 
-The host port is created by Docker before Companion starts. If `QM_MOBILE_BIND_IP` is not assigned to the host, port 8788 is already allocated, or the mapping is invalid, Docker refuses to start the container and port 8787 is unavailable as well. Run `scripts/preflight-mobile.mjs` before deployment and verify both published ports from the host.
+With Compose, the host port is created before Companion starts. If `QM_MOBILE_BIND_IP` is not assigned to the host, port 8788 is already allocated, or the mapping is invalid, Docker refuses to start the container and port 8787 is unavailable as well. Run `scripts/preflight-mobile.mjs` before deployment and verify both published ports from the host.
+
+On Unraid, a missing 8788 mapping leaves the internal listener unreachable; an occupied host port prevents the container from starting. Check the template's port field and the container log.
 
 If a later Compose override removes the 8788 mapping, the internal listener may still report healthy even though it cannot be reached from another machine. Test `QM_ADVERTISED_ORIGIN` from another device after deployment.
 

@@ -127,7 +127,6 @@ test('wrong SECRET_KEY reports auth failure and preserves pairings', () => {
   assert.equal(readFileSync(mobileFile(dataDir), 'utf8'), before);
   assert.match(result.stdout, /docker compose (-f \S+ )+run --rm --no-deps --entrypoint node companion src\/mobile\/repair\.js/);
   assert.match(result.stdout, /-f docker-compose\.example\.yml -f docker-compose\.mobile\.yml run/, 'base first, mobile overlay last');
-  assert.match(result.stdout, /`docker exec` requires\s+a running container/);
   assert.doesNotMatch(result.stdout, NO_SECRETS);
   assert.ok(!result.stdout.includes(OTHER_KEY) && !result.stdout.includes(KEY), 'no key value is ever printed');
 });

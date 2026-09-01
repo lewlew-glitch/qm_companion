@@ -83,7 +83,9 @@ test('failed listeners are not advertised', async (t) => {
   assert.match(body, /did not start/);
   assert.match(body, /QM_ADVERTISED_ORIGIN/, 'and names the value to fix');
   assert.match(body, /MOBILE_API_ENABLED=false/, 'and the way back to the plaintext panel');
-  assert.match(body, /same -f overlay list/);
+  assert.match(body, /Make sure that port is published/);
+  assert.match(body, /save the settings and recreate Companion/);
+  assert.doesNotMatch(body, /docker-compose\.mobile\.yml|same -f overlay list/);
 
   const setup = await fetch(`${base}/setup`, { headers: { accept: 'text/html' } });
   assert.equal(setup.status, 403);

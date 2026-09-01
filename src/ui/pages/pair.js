@@ -156,7 +156,7 @@ function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [
           <div class="field"><label for="base_${index}">Home / local address</label><input class="pair-base" id="base_${index}" name="base_${index}" type="url" value="${escapeHtml(value.baseUrl || '')}" placeholder="http://192.168.1.10:${escapeHtml(d.port || PORTS[d.kind] || '')}" autocomplete="off" spellcheck="false"></div>
           <div class="field"><label for="remote_${index}">Away address <span>optional, Tailscale or Cloudflare</span></label><input class="pair-remote" id="remote_${index}" name="remote_${index}" type="url" value="${escapeHtml(value.remoteBaseUrl || '')}" placeholder="https://nas.tailnet.ts.net:${escapeHtml(d.port || PORTS[d.kind] || '')} or https://${escapeHtml(d.kind)}.example.com" autocomplete="off" spellcheck="false"></div>
         </div>
-        ${rung ? ladderMarkup(d.kind, rung, canShell, mintEnabledKinds) : deferred}
+        ${rung ? ladderMarkup(d.kind, rung, canShell, mintEnabledKinds, d.name) : deferred}
       </div>
     </section>`;
     groups[group].push(markup);

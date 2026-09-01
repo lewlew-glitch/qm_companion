@@ -46,6 +46,16 @@ async function withEnv(env, run) {
   }
 }
 
+function templateConfig(xml, target) {
+  for (const match of xml.matchAll(/<Config\b[^>]*\/>/gu)) {
+    const attributes = Object.fromEntries(
+      [...match[0].matchAll(/\b([A-Za-z]+)="([^"]*)"/gu)].map((attribute) => [attribute[1], attribute[2]]),
+    );
+    if (attributes.Target === target) return attributes;
+  }
+  assert.fail(`missing template config for ${target}`);
+}
+
 
 test('proxy requests include the shared key', async () => {
   const fake = await fakeDocker(() => ({ status: 200, json: [] }));
@@ -321,6 +331,32 @@ test('public Companion recreate commands rebuild the local images', () => {
 test('closes the container filesystem export route', () => {
   const dockerfile = readFileSync(join(projectRoot, 'Dockerfile.socket-proxy'), 'utf8');
   assert.match(dockerfile, /\(archive\|export\)/);
+});
+
+test('Unraid template keeps mobile access opt in', () => {
+  const companion = readFileSync(join(projectRoot, 'templates', 'qm-companion.xml'), 'utf8');
+  const expected = new Map([
+    ['DOCKER_HOST', { Default: 'tcp://socket-proxy:2375', Required: 'true' }],
+    ['8788', { Default: '', Mode: 'tcp', Required: 'false' }],
+    ['MOBILE_API_ENABLED', { Default: 'false', Required: 'true' }],
+    ['MOBILE_ENROLMENT_ENABLED', { Default: 'true', Required: 'true' }],
+    ['QM_ADVERTISED_ORIGIN', { Default: '', Required: 'false' }],
+    ['MOBILE_PORT', { Default: '8788', Required: 'true' }],
+    ['MOBILE_BIND_ADDRESS', { Default: '0.0.0.0', Required: 'true' }],
+  ]);
+  for (const [target, values] of expected) {
+    const config = templateConfig(companion, target);
+    for (const [name, value] of Object.entries(values)) assert.equal(config[name], value, `${target} ${name}`);
+  }
+});
+
+test('Unraid guide covers the dedicated proxy, mobile port and extra instances', () => {
+  const proxy = readFileSync(join(projectRoot, 'templates', 'qm-socket-proxy.xml'), 'utf8');
+  const guide = readFileSync(join(projectRoot, 'docs', 'unraid.md'), 'utf8');
+  assert.match(proxy, /Keep the container name, do not publish port 2375/);
+  assert.match(guide, /Use the supplied `qm-socket-proxy`/);
+  assert.match(guide, /Mobile HTTPS port to `8788`/);
+  assert.match(guide, /choose \*\*Add another Path\*\*/);
 });
 
 test('diagnoses an unusable proxy key', async () => {

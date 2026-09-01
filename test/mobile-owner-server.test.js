@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:net';
 import { createHmac } from 'node:crypto';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
@@ -262,6 +262,67 @@ test('denies HTTP owner authority while HTTPS is active', async (t) => {
     assert.equal((await fetch(`${origin}${path}`)).status, 403, path);
   }
   assert.equal((await fetch(`${origin}/healthz`)).status, 200);
+});
+
+test('native HTTPS remains authoritative when trust proxy is enabled', async (t) => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'qm-mobile-owner-trusted-proxy-'));
+  const stackDir = join(dataDir, 'stack', 'radarr');
+  mkdirSync(stackDir, { recursive: true });
+  writeFileSync(join(stackDir, 'config.xml'), '<Config><ApiKey>detected-api-key</ApiKey><Port>7878</Port><InstanceName>Radarr</InstanceName></Config>');
+
+  const mobilePort = await freePort();
+  const advertised = `https://127.0.0.1:${mobilePort}`;
+  const secure = await boot(t, {
+    DATA_DIR: dataDir,
+    TRUST_PROXY: 'true',
+    MOBILE_API_ENABLED: 'true',
+    MOBILE_ENROLMENT_ENABLED: 'true',
+    QM_ADVERTISED_ORIGIN: advertised,
+    MOBILE_PORT: String(mobilePort),
+    MOBILE_BIND_ADDRESS: '127.0.0.1',
+  }, { secureSetup: true });
+
+  relaxTls();
+  try {
+    const pair = await fetch(`${advertised}/pair`, { headers: { cookie: secure.cookie, accept: 'text/html' } });
+    assert.equal(pair.status, 200);
+    const pairHtml = await pair.text();
+    const instanceId = (pairHtml.match(/name="service_0" value="([^"]+)"/u) || [])[1];
+    assert.ok(instanceId, 'the mounted Radarr instance is available for transfer');
+
+    const body = new URLSearchParams({
+      csrf: secure.csrf,
+      service_0: instanceId,
+      include_0: 'on',
+      base_0: 'http://127.0.0.1:7878',
+      remote_0: 'https://radarr.example.com',
+      edge_domain: 'example.com',
+      edge_client_id: 'client-id.access',
+      edge_client_secret: 'client-secret',
+    });
+    const postPair = async (headers = {}) => {
+      const response = await fetch(`${advertised}/pair`, {
+        method: 'POST',
+        headers: {
+          cookie: secure.cookie,
+          'content-type': 'application/x-www-form-urlencoded',
+          'sec-fetch-site': 'same-origin',
+          ...headers,
+        },
+        body: body.toString(),
+        redirect: 'manual',
+      });
+      const html = await response.text();
+      assert.equal(response.status, 200, html);
+      assert.match(html, /One-time transfer ready/);
+      assert.doesNotMatch(html, /proxy did not provide|only be transferred from Companion over HTTPS/i);
+    };
+
+    await postPair();
+    await postPair({ 'x-forwarded-proto': 'http' });
+  } finally {
+    restoreTls();
+  }
 });
 
 test('rejects TLS session cookies on plaintext routes', async (t) => {

@@ -31,7 +31,15 @@ When state authentication fails after a configuration change, restore the previo
 
 ## Diagnose the mobile installation
 
-Run the out-of-band diagnosis from the host:
+On Unraid, run the read-only check while `qm-companion` is running:
+
+```sh
+docker exec qm-companion node src/mobile/repair.js
+```
+
+If the container will not start, check its log and confirm the mobile settings and the 8788 port mapping in the template first. The command above needs a running container.
+
+For Docker Compose, run the out-of-band diagnosis from the host:
 
 ```sh
 docker compose -f docker-compose.example.yml -f docker-compose.mobile.yml \
@@ -47,7 +55,7 @@ docker compose -f docker-compose.example.yml -f docker-compose.management.yml -f
 
 A bare `docker compose` command does not find the shipped profiles because their names do not use Compose's default filename. Omitting the mobile overlay also omits the mobile environment, which can make an enabled installation appear disabled.
 
-The command uses `docker compose run`, not `docker exec`. It starts a throwaway container with the same image, environment, and `/data` volume, so it still works while the application container is stopped or restarting.
+The Compose command starts a throwaway container with the same image, environment, and `/data` volume, so it still works while the application container is stopped or restarting.
 
 The diagnosis does not modify the data directory. It checks the panel state before mobile state, validates authenticated sidecars with the configured `SECRET_KEY`, checks the certificate and listener plan, and compares watched file hashes before and after. It is suitable for a read-only copy of the volume.
 

@@ -14,6 +14,7 @@ const SECRET_KEY = 'ab'.repeat(32);
 const HOST = '192.168.1.11';
 const PORT = 8788;
 const MOBILE_OVERLAY = 'docker-compose.mobile.yml';
+const UNRAID_REPAIR = 'docker exec qm-companion node src/mobile/repair.js';
 const roots = [];
 
 test.after(() => {
@@ -75,7 +76,7 @@ function provision(dataDir) {
 /** Read the repair command from process output. */
 function printedRepairCommand() {
   const result = repair(tempDir());
-  const line = result.stdout.split('\n').find((row) => row.includes('src/mobile/repair.js') && row.includes('docker'));
+  const line = result.stdout.split('\n').find((row) => row.includes('src/mobile/repair.js') && row.includes('docker compose'));
   assert.ok(line, `the command is printed:\n${result.stdout}`);
   return line.trim();
 }
@@ -120,6 +121,8 @@ test('recovery commands match repair output', () => {
   assert.ok(text.includes(printed), `the recovery guide carries the printed command verbatim: ${printed}`);
   assert.match(text, /same list this installation is deployed with, in the same order/);
   assert.match(text, /Include `docker-compose\.mobile\.yml` after every file that changes `ports`/);
+  assert.ok(text.includes(UNRAID_REPAIR));
+  assert.match(text, /needs a running container/);
 });
 
 test('reports the mobile plane off when the mobile overlay is omitted', () => {
@@ -139,17 +142,15 @@ test('reports the mobile plane off when the mobile overlay is omitted', () => {
 });
 
 
-/** Text that mentions exec only to reject it. */
-const REFUSAL = '`docker exec` requires\na running container.';
 const EXEC_INSTRUCTION = /docker (compose (-f \S+ )*)?exec/;
 
 function assertNoExecInstruction(stdout, what) {
-  const withoutRefusal = stdout.split(REFUSAL).join('');
-  const found = EXEC_INSTRUCTION.exec(withoutRefusal);
-  assert.equal(found, null, `${what} prints an exec instruction, which needs a running container: ${found && withoutRefusal.slice(Math.max(0, found.index - 120), found.index + 160)}`);
+  const withoutUnraid = stdout.split(UNRAID_REPAIR).join('');
+  const found = EXEC_INSTRUCTION.exec(withoutUnraid);
+  assert.equal(found, null, `${what} prints an unexpected exec instruction: ${found && withoutUnraid.slice(Math.max(0, found.index - 120), found.index + 160)}`);
 }
 
-test('omits exec instructions from repair diagnoses', () => {
+test('repair diagnoses print only the supported Unraid exec command', () => {
   const cases = [];
 
   const healthy = tempDir();
@@ -172,21 +173,22 @@ test('omits exec instructions from repair diagnoses', () => {
   assert.match(unreadable.stdout, /Mobile state error:/, 'the fixture reaches the mobile failure line');
   cases.push(['an unreadable mobile sidecar', unreadable]);
 
+  assert.ok(cases[0][1].stdout.includes(UNRAID_REPAIR));
   for (const [what, result] of cases) {
     assert.match(result.stdout, /docker compose (-f \S+ )+run --rm/, `${what} still offers the out-of-band form`);
     assertNoExecInstruction(result.stdout, what);
   }
 });
 
-test('omits exec guidance for stopped containers', () => {
+test('limits exec guidance to a running Unraid container', () => {
   const text = oneLine(`${recoveryGuide()}\n${tlsGuide()}`);
-  assert.doesNotMatch(text, /docker exec qm-companion node src\/mobile\/repair\.js/, 'the repair command is not an exec');
+  assert.match(text, /docker exec qm-companion node src\/mobile\/repair\.js/);
   assert.doesNotMatch(text, /docker exec qm-companion sh -lc/, 'the key-length check is not an exec either');
   assert.match(text, /run --rm --no-deps --entrypoint sh companion -lc 'printf "SECRET_KEY length/);
 
   const refuses = (line) => /`?docker( compose)? exec`? cannot/.test(line)
     || /\b(not|never) `?docker( compose)? exec`?/i.test(line);
-  const execLines = text.split('\n').filter((line) => EXEC_INSTRUCTION.test(line) && !refuses(line));
+  const execLines = text.split('\n').filter((line) => line.trim() !== UNRAID_REPAIR && EXEC_INSTRUCTION.test(line) && !refuses(line));
   for (const line of execLines) {
     assert.match(line, /rotate-cert\.js --confirm/, `every remaining exec line in the recovery guides is the rotation command: ${line}`);
   }

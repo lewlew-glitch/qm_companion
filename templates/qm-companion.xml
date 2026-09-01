@@ -14,7 +14,7 @@
   <ReadMe>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/unraid.md</ReadMe>
   <Category>Tools:System</Category>
   <ExtraSearchTerms>quartermaster mobile docker dashboard</ExtraSearchTerms>
-  <Requires>Install qm-socket-proxy first. Use the same QM_PROXY_KEY in both templates and a separate SECRET_KEY for Companion. The default Docker access level is read only.</Requires>
+  <Requires>Install qm-socket-proxy first and keep its container name. Use the same QM_PROXY_KEY in both templates and a separate SECRET_KEY. Docker access is read only and persistent mobile access is off by default.</Requires>
   <License>MIT</License>
   <Screenshot>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/screenshots/dashboard-overview.png</Screenshot>
   <Screenshot>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/screenshots/live-monitoring.png</Screenshot>
@@ -22,6 +22,7 @@
   <ExtraParams>--restart=unless-stopped --read-only --cap-drop=ALL --security-opt=no-new-privileges --tmpfs=/tmp:size=16m,mode=1777 --label=qm.protected=true --user=99:100 --link=qm-socket-proxy:socket-proxy</ExtraParams>
 
   <Config Name="Web UI port" Target="8787" Default="8787" Mode="tcp" Description="Host port for the Companion web interface." Type="Port" Display="always" Required="true" Mask="false"/>
+  <Config Name="Mobile HTTPS port" Target="8788" Default="" Mode="tcp" Description="Enter 8788 when enabling the persistent mobile connection. Leave blank while it is off." Type="Port" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Appdata" Target="/data" Default="/mnt/user/appdata/qm-companion" Mode="rw" Description="Persistent encrypted state. Back up this directory and keep the same SECRET_KEY during upgrades." Type="Path" Display="always" Required="true" Mask="false"/>
   <Config Name="Encryption key" Target="SECRET_KEY" Default="" Description="64 hexadecimal characters used to encrypt saved credentials. Generate it once with openssl rand -hex 32 and keep it for upgrades." Type="Variable" Display="always" Required="true" Mask="true"/>
   <Config Name="Proxy key" Target="QM_PROXY_KEY" Default="" Description="Key used to authenticate to qm-socket-proxy. Enter the same QM_PROXY_KEY used by the proxy template." Type="Variable" Display="always" Required="true" Mask="true"/>
@@ -29,13 +30,18 @@
   <Config Name="Away address" Target="QM_REMOTE_HOST" Default="" Description="Optional host name or Tailscale address suggested for away routes." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Docker access limit" Target="DOCKER_ACCESS_MAX" Default="read" Description="Installed maximum: read, manage or shell. Keep read unless the proxy POST and EXEC settings are changed to match." Type="Variable" Display="always" Required="true" Mask="false"/>
   <Config Name="Bind address" Target="BIND_ADDRESS" Default="0.0.0.0" Description="Listener inside the container. Keep 0.0.0.0 for the Unraid port mapping." Type="Variable" Display="advanced" Required="true" Mask="false"/>
-  <Config Name="Docker host" Target="DOCKER_HOST" Default="tcp://socket-proxy:2375" Description="Internal address of qm-socket-proxy. Do not expose this port on the host." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Docker host" Target="DOCKER_HOST" Default="tcp://socket-proxy:2375" Description="Internal qm-socket-proxy address. Keep this value unchanged and do not expose port 2375 on the host." Type="Variable" Display="advanced" Required="true" Mask="false"/>
   <Config Name="Trusted reverse proxy" Target="TRUST_PROXY" Default="false" Description="Set true only when the panel is behind a trusted HTTPS reverse proxy." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Persistent mobile connection" Target="MOBILE_API_ENABLED" Default="false" Description="Set true only after entering the Mobile HTTPS origin. Browser sign-in then moves from port 8787 to that direct HTTPS address." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Allow new phone pairings" Target="MOBILE_ENROLMENT_ENABLED" Default="true" Description="Allows new pairings while the persistent mobile connection is enabled. Existing paired phones continue when this is false." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Mobile HTTPS origin" Target="QM_ADVERTISED_ORIGIN" Default="" Description="Exact direct LAN or Tailscale origin reached by phones, including https:// and :8788. Reverse-proxy addresses are not supported." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Mobile listener port" Target="MOBILE_PORT" Default="8788" Description="Internal HTTPS listener port. Keep this at 8788 so it matches the Mobile HTTPS port and origin." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Mobile bind address" Target="MOBILE_BIND_ADDRESS" Default="0.0.0.0" Description="Listener inside the container. Keep 0.0.0.0 for the Unraid port mapping." Type="Variable" Display="advanced" Required="true" Mask="false"/>
   <Config Name="Marketplace bind roots" Target="DOCKER_DEPLOY_BIND_ROOTS" Default="" Description="Optional host roots allowed for Marketplace bind mounts. Leave blank to allow named volumes only." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Marketplace bind address" Target="DOCKER_DEPLOY_BIND_ADDRESS" Default="" Description="Optional host address used for ports published by Marketplace deployments." Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
-  <Config Name="Radarr config" Target="/stack/radarr/config.xml" Default="" Mode="ro" Description="Optional host path to Radarr config.xml." Type="Path" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="Sonarr config" Target="/stack/sonarr/config.xml" Default="" Mode="ro" Description="Optional host path to Sonarr config.xml." Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Radarr config" Target="/stack/radarr/config.xml" Default="" Mode="ro" Description="Optional config.xml for a container named radarr. Add another read-only Path entry with a unique /stack/radarr-name/config.xml target for each extra instance." Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Sonarr config" Target="/stack/sonarr/config.xml" Default="" Mode="ro" Description="Optional config.xml for a container named sonarr. Add another read-only Path entry with a unique /stack/sonarr-name/config.xml target for each extra instance." Type="Path" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Lidarr config" Target="/stack/lidarr/config.xml" Default="" Mode="ro" Description="Optional host path to Lidarr config.xml." Type="Path" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Prowlarr config" Target="/stack/prowlarr/config.xml" Default="" Mode="ro" Description="Optional host path to Prowlarr config.xml." Type="Path" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Bazarr config" Target="/stack/bazarr/config.yaml" Default="" Mode="ro" Description="Optional host path to Bazarr config.yaml." Type="Path" Display="advanced" Required="false" Mask="false"/>

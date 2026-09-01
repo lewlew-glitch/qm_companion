@@ -19,6 +19,9 @@ const COMPOSE_FILE_FLAGS = REPAIR_COMPOSE_FILES.map((file) => `-f ${file}`).join
 /** Stopped-container diagnostic command. */
 export const REPAIR_COMMAND = `docker compose ${COMPOSE_FILE_FLAGS} run --rm --no-deps --entrypoint node companion src/mobile/repair.js`;
 
+/** Running Unraid-container diagnostic command. */
+export const UNRAID_REPAIR_COMMAND = 'docker exec qm-companion node src/mobile/repair.js';
+
 /** Stopped-container certificate rotation command. */
 const ROTATE_OUT_OF_BAND = `docker compose ${COMPOSE_FILE_FLAGS} run --rm --no-deps --entrypoint node companion src/mobile/rotate-cert.js --confirm`;
 
@@ -259,12 +262,15 @@ function describeCertificateReadOnly(paths) {
   };
 }
 
-out('Repair command for a stopped or crash-looping container:');
+out('Read-only check for a running Unraid container:');
+out(`  ${UNRAID_REPAIR_COMMAND}`);
+out('If the Unraid container is stopped, check its log, mobile settings and port 8788 mapping first.');
+out('');
+out('Compose check for a stopped or crash-looping container:');
 out(`  ${REPAIR_COMMAND}`);
 out('Use the deployment\'s -f files in the same order, with docker-compose.mobile.yml last.');
 out('The mobile overlay supplies MOBILE_API_ENABLED, MOBILE_PORT and QM_ADVERTISED_ORIGIN; omitting');
-out('it produces an incomplete listener diagnosis. Use `docker compose run`; `docker exec` requires');
-out('a running container.');
+out('it produces an incomplete listener diagnosis.');
 out('');
 
 // Companion state and installation binding.

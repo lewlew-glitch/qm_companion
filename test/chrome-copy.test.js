@@ -85,8 +85,10 @@ test('TCP DOCKER_HOST omits local socket-mount instructions', () => {
 
   assert.doesNotMatch(gone, /This lights up when the companion runs on your server with the socket mounted/);
   assert.match(gone, /tcp:\/\/socket-proxy:2375/, 'it names the address that is silent');
-  assert.match(gone, /socket-proxy<\/code> service/, 'and the compose service behind it');
-  assert.match(gone, /up -d --build socket-proxy/, 'and the command that starts it');
+  assert.match(gone, /configured socket proxy/);
+  assert.match(gone, /running and reachable from Companion/);
+  assert.match(gone, /Unraid or its Compose project/);
+  assert.doesNotMatch(gone, /docker compose|up -d/);
 
   assert.match(blocked, /CONTAINERS: 1/);
   assert.match(blocked, /socket-proxy<\/code> service/);
@@ -96,19 +98,20 @@ test('TCP DOCKER_HOST omits local socket-mount instructions', () => {
 test('a socket path names the volume line that is missing', () => {
   const gone = emptyOf(renderEmptyStates('/var/run/docker.sock').gone);
   assert.match(gone, /No Docker socket at/);
-  assert.match(gone, /- \/var\/run\/docker\.sock:\/var\/run\/docker\.sock:ro/, 'the exact volume line');
-  assert.match(gone, /volumes:/);
-  assert.match(gone, /up -d --build companion/);
+  assert.match(gone, /\/var\/run\/docker\.sock:\/var\/run\/docker\.sock:ro/, 'the exact mount');
+  assert.match(gone, /Mount/);
+  assert.match(gone, /recreate the container/);
+  assert.doesNotMatch(gone, /volumes:|docker compose|up -d/);
   const bare = emptyOf(renderEmptyStates('tcp://127.0.0.1:1').gone);
   assert.doesNotMatch(bare, /service/);
   assert.match(bare, /127\.0\.0\.1:1/);
 });
 
-test('recovery text omits bare docker compose up -d', () => {
+test('unavailable Docker recovery does not assume Compose', () => {
   for (const host of ['tcp://socket-proxy:2375', '/var/run/docker.sock', 'ssh://nas', null]) {
     const { blocked, gone } = renderEmptyStates(host);
-    assert.doesNotMatch(blocked, /docker compose up -d/, `proxyBlocked (${host})`);
-    assert.doesNotMatch(gone, /docker compose up -d/, `noSocket (${host})`);
+    assert.doesNotMatch(emptyOf(gone), /docker compose|up -d/, `noSocket (${host})`);
+    assert.doesNotMatch(emptyOf(blocked), /docker compose up -d/, `proxyBlocked (${host})`);
   }
   assert.doesNotMatch(dockerTab(), /docker compose up -d/);
 });

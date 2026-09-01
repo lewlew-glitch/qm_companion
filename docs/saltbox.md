@@ -62,7 +62,20 @@ The supplied router uses Companion's own owner login and two-factor authenticati
 
 With the mobile profile enabled, the owner panel and mobile API move to direct HTTPS on port 8788. Port 8787 then serves only health and static responses. Do not route 8788 through Traefik or forward auth: phones pin Companion's certificate and exact origin, so the mobile profile must remain a direct LAN or Tailscale connection.
 
-Apply the mobile file last so its port is not removed by the Saltbox overlay:
+Set `QM_MOBILE_BIND_IP` to an address that is assigned to the Docker host. A Tailscale IP works only when Tailscale creates that address on the host; an address owned by a Tailscale container or userspace network cannot be used for Docker's port binding.
+
+Load the private environment and run the host preflight:
+
+```sh
+(
+  set -a
+  . ./.env
+  set +a
+  node scripts/preflight-mobile.mjs
+)
+```
+
+Only continue when the preflight reports `Safe to deploy`. Apply the mobile file last so its port is not removed by the Saltbox overlay:
 
 ```sh
 docker compose -f docker-compose.example.yml -f docker-compose.saltbox.yml -f docker-compose.mobile.yml up -d --build
