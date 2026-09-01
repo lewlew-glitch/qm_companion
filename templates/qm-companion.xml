@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Container version="2">
+  <Name>qm-companion</Name>
+  <Repository>ghcr.io/lewlew-glitch/qm-companion:latest</Repository>
+  <Registry>https://github.com/lewlew-glitch/qm_companion/pkgs/container/qm-companion</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <WebUI>http://[IP]:[PORT:8787]</WebUI>
+  <Icon>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/src/assets/logo.png</Icon>
+  <Overview>Self-hosted companion for the Quartermaster phone app. It provides service discovery, encrypted setup transfers and an optional Docker dashboard.</Overview>
+  <Project>https://github.com/lewlew-glitch/qm_companion</Project>
+  <TemplateURL>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/templates/qm-companion.xml</TemplateURL>
+  <ReadMe>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/unraid.md</ReadMe>
+  <Category>Tools:System</Category>
+  <ExtraSearchTerms>quartermaster mobile docker dashboard</ExtraSearchTerms>
+  <Requires>Install qm-socket-proxy first. Use the same QM_PROXY_KEY in both templates and a separate SECRET_KEY for Companion. The default Docker access level is read only.</Requires>
+  <License>MIT</License>
+  <Screenshot>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/screenshots/dashboard-overview.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/screenshots/live-monitoring.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/screenshots/compose-stacks.png</Screenshot>
+  <ExtraParams>--restart=unless-stopped --read-only --cap-drop=ALL --security-opt=no-new-privileges --tmpfs=/tmp:size=16m,mode=1777 --label=qm.protected=true --user=99:100 --link=qm-socket-proxy:socket-proxy</ExtraParams>
+
+  <Config Name="Web UI port" Target="8787" Default="8787" Mode="tcp" Description="Host port for the Companion web interface." Type="Port" Display="always" Required="true" Mask="false"/>
+  <Config Name="Appdata" Target="/data" Default="/mnt/user/appdata/qm-companion" Mode="rw" Description="Persistent encrypted state. Back up this directory and keep the same SECRET_KEY during upgrades." Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="Encryption key" Target="SECRET_KEY" Default="" Description="64 hexadecimal characters used to encrypt saved credentials. Generate it once with openssl rand -hex 32 and keep it for upgrades." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Proxy key" Target="QM_PROXY_KEY" Default="" Description="Key used to authenticate to qm-socket-proxy. Enter the same QM_PROXY_KEY used by the proxy template." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Server address" Target="QM_HOST" Default="" Description="LAN or Tailscale address of this Unraid server that the phone can reach. Enter a host only, without a scheme, port or path." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Away address" Target="QM_REMOTE_HOST" Default="" Description="Optional host name or Tailscale address suggested for away routes." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Docker access limit" Target="DOCKER_ACCESS_MAX" Default="read" Description="Installed maximum: read, manage or shell. Keep read unless the proxy POST and EXEC settings are changed to match." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Bind address" Target="BIND_ADDRESS" Default="0.0.0.0" Description="Listener inside the container. Keep 0.0.0.0 for the Unraid port mapping." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Docker host" Target="DOCKER_HOST" Default="tcp://socket-proxy:2375" Description="Internal address of qm-socket-proxy. Do not expose this port on the host." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Trusted reverse proxy" Target="TRUST_PROXY" Default="false" Description="Set true only when the panel is behind a trusted HTTPS reverse proxy." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Marketplace bind roots" Target="DOCKER_DEPLOY_BIND_ROOTS" Default="" Description="Optional host roots allowed for Marketplace bind mounts. Leave blank to allow named volumes only." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Marketplace bind address" Target="DOCKER_DEPLOY_BIND_ADDRESS" Default="" Description="Optional host address used for ports published by Marketplace deployments." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <Config Name="Radarr config" Target="/stack/radarr/config.xml" Default="" Mode="ro" Description="Optional host path to Radarr config.xml." Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Sonarr config" Target="/stack/sonarr/config.xml" Default="" Mode="ro" Description="Optional host path to Sonarr config.xml." Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Lidarr config" Target="/stack/lidarr/config.xml" Default="" Mode="ro" Description="Optional host path to Lidarr config.xml." Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Prowlarr config" Target="/stack/prowlarr/config.xml" Default="" Mode="ro" Description="Optional host path to Prowlarr config.xml." Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Bazarr config" Target="/stack/bazarr/config.yaml" Default="" Mode="ro" Description="Optional host path to Bazarr config.yaml." Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="SABnzbd config" Target="/stack/sabnzbd/sabnzbd.ini" Default="" Mode="ro" Description="Optional host path to SABnzbd sabnzbd.ini." Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Jellyseerr config" Target="/stack/jellyseerr/settings.json" Default="" Mode="ro" Description="Optional host path to Jellyseerr settings.json." Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Overseerr config" Target="/stack/overseerr/settings.json" Default="" Mode="ro" Description="Optional host path to Overseerr settings.json." Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Tautulli config" Target="/stack/tautulli/config.ini" Default="" Mode="ro" Description="Optional host path to Tautulli config.ini." Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Jackett config" Target="/stack/jackett/ServerConfig.json" Default="" Mode="ro" Description="Optional host path to Jackett ServerConfig.json." Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="NZBHydra2 config" Target="/stack/nzbhydra2/nzbhydra.yml" Default="" Mode="ro" Description="Optional host path to NZBHydra2 nzbhydra.yml." Type="Path" Display="advanced" Required="false" Mask="false"/>
+</Container>

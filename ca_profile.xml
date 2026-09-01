@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommunityApplications>
+  <Profile>Quartermaster Companion connects the Quartermaster phone app to services on a self-hosted server. This repository contains Companion and its restricted Docker socket proxy. Both templates are required for an Unraid installation.</Profile>
+  <Icon>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/src/assets/logo.png</Icon>
+  <WebPage>https://qmstack.com/</WebPage>
+</CommunityApplications>

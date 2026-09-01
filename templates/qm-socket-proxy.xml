@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Container version="2">
+  <Name>qm-socket-proxy</Name>
+  <Repository>ghcr.io/lewlew-glitch/qm-companion-socket-proxy:latest</Repository>
+  <Registry>https://github.com/lewlew-glitch/qm_companion/pkgs/container/qm-companion-socket-proxy</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Icon>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/src/assets/logo.png</Icon>
+  <Overview>Restricted Docker API proxy for Quartermaster Companion. It keeps the Docker socket out of the main application and does not publish a host port.</Overview>
+  <Project>https://github.com/lewlew-glitch/qm_companion</Project>
+  <TemplateURL>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/templates/qm-socket-proxy.xml</TemplateURL>
+  <ReadMe>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/unraid.md</ReadMe>
+  <Category>Tools:System</Category>
+  <ExtraSearchTerms>quartermaster docker socket proxy</ExtraSearchTerms>
+  <Requires>Install this before qm-companion. Do not publish port 2375. Use the same QM_PROXY_KEY in both templates.</Requires>
+  <License>MIT</License>
+  <ExtraParams>--restart=unless-stopped --read-only --cap-drop=ALL --security-opt=no-new-privileges --tmpfs=/tmp:size=4m,mode=1777 --tmpfs=/run:size=1m,mode=0755 --label=qm.protected=true</ExtraParams>
+
+  <Config Name="Docker socket" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="ro" Description="Docker socket used by the restricted proxy. Keep this mount read only." Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="Proxy key" Target="QM_PROXY_KEY" Default="" Description="Shared key used to authenticate Companion. Generate it with openssl rand -hex 32 and enter the same value in qm-companion." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Docker writes" Target="POST" Default="0" Description="Keep 0 for read only. Set 1 only when qm-companion uses the manage or shell access level." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Container shell" Target="EXEC" Default="0" Description="Keep 0 unless qm-companion uses the shell access level." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Containers API" Target="CONTAINERS" Default="1" Description="Allows Companion to inspect containers." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Images API" Target="IMAGES" Default="1" Description="Allows Companion to inspect images." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Volumes API" Target="VOLUMES" Default="1" Description="Allows Companion to inspect volumes." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Networks API" Target="NETWORKS" Default="1" Description="Allows Companion to inspect networks." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Events API" Target="EVENTS" Default="1" Description="Allows Companion to follow Docker events." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Host information API" Target="INFO" Default="1" Description="Allows Companion to read Docker host information." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Disk usage API" Target="SYSTEM" Default="1" Description="Allows Companion to read Docker disk usage." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Ping API" Target="PING" Default="1" Description="Allows Companion to check the Docker connection." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Version API" Target="VERSION" Default="1" Description="Allows Companion to read the Docker API version." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+</Container>
