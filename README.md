@@ -7,7 +7,7 @@ The standard setup transfer does not route app traffic through Companion. After 
 ## Features
 
 - Discovers multiple service instances from approved config files and Docker.
-- Transfers service addresses and API keys through a shorttlived encrypted setup package.
+- Transfers service addresses and API keys through a short-lived encrypted setup package.
 - Shows containers, stacks, images, volumes, networks, events, logs, and resource use.
 - Provides optional Docker lifecycle controls, image operations, Compose deployment, scheduled jobs, and an in-container shell.
 - Stores credentials in authenticated encrypted state.
@@ -21,6 +21,10 @@ The standard setup transfer does not route app traffic through Companion. After 
 | Live monitoring | Compose stacks |
 | --- | --- |
 | ![Dashboard live monitoring](docs/screenshots/live-monitoring.png) | ![Compose stack management](docs/screenshots/compose-stacks.png) |
+
+## Unraid
+
+Community Apps uses separate `qm-socket-proxy` and `qm-companion` entries so the Docker socket is not mounted into the main application. Install the proxy first, then Companion with the same proxy key. See [Unraid](docs/unraid.md) for the complete setup and Docker access settings.
 
 ## Quick install
 
@@ -121,6 +125,7 @@ Read [Security model](docs/security-model.md) before exposing the panel or enabl
 - [Docker access](docs/docker-access.md)
 - [Mobile connections](docs/mobile-connection.md)
 - [Saltbox](docs/saltbox.md)
+- [Unraid](docs/unraid.md)
 - [TLS and certificates](docs/tls-and-certificates.md)
 - [Backup and recovery](docs/recovery.md)
 - [Security model](docs/security-model.md)
