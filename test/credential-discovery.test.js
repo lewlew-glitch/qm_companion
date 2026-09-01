@@ -6,7 +6,11 @@ import {
   homepageCredential,
   mergeDetectedServices,
 } from '../src/detect.js';
-import { pairingCredentialState } from '../src/kinds.js';
+import { matchImage, pairingCredentialState } from '../src/kinds.js';
+
+test('recognises the CrowdSec image', () => {
+  assert.equal(matchImage('crowdsecurity/crowdsec:latest', 'crowdsec'), 'crowdsec');
+});
 
 test('Homepage credentials require an exact matching widget type', () => {
   assert.deepEqual(homepageCredential('radarr', {
@@ -305,6 +309,7 @@ test('pairing status distinguishes keyless services from missing credentials', (
   assert.equal(pairingCredentialState('radarr'), 'missing-key');
   assert.equal(pairingCredentialState('plex'), 'sign-in');
   assert.equal(pairingCredentialState('komodo'), 'key-and-secret');
+  assert.equal(pairingCredentialState('crowdsec'), 'sign-in');
 });
 
 test('Jellyseerr media-server sections do not hide main.apiKey', () => {

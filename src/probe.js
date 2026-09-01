@@ -26,6 +26,7 @@ const FINGERPRINTS = [
   { kind: 'portainer', port: 9443, path: '/api/system/status', sig: /Version|Portainer/i, scheme: 'https' },
   { kind: 'pihole', port: 80, path: '/admin/', sig: /pi-hole/i },
   { kind: 'adguard', port: 3000, path: '/', sig: /adguard/i },
+  { kind: 'crowdsec', port: 8080, path: '/health', sig: /"status"\s*:\s*"up"/i },
   { kind: 'komodo', port: 9120, path: '/', sig: /komodo/i },
   { kind: 'beszel', port: 8090, path: '/', sig: /beszel/i },
   { kind: 'dockhand', port: 3000, path: '/', sig: /dockhand/i },

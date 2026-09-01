@@ -2,7 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { mergeDetectedServices, mergeLiveProbes, configFileRule, applyMintedKeys, availabilityFor, publishedPortOf } from '../src/detect.js';
-import { schemeForKindPort } from '../src/probe.js';
+import { fingerprintsFor, schemeForKindPort } from '../src/probe.js';
+
+test('CrowdSec uses its public health endpoint', () => {
+  const [fingerprint] = fingerprintsFor('crowdsec');
+  assert.equal(fingerprint.port, 8080);
+  assert.equal(fingerprint.path, '/health');
+  assert.equal(fingerprint.sig.test('{"status":"up"}'), true);
+});
 
 function docker(name, publishedPort, apiKey) {
   return {

@@ -155,6 +155,29 @@ test('phone-login services are disabled', () => {
   assert.equal(bundle.summary[0].credentialState, 'sign-in');
 });
 
+test('CrowdSec is handed over for phone sign-in', () => {
+  const crowdsec = [{
+    instanceId: 'crowdsec-111aaa',
+    kind: 'crowdsec',
+    name: 'CrowdSec',
+    port: 8080,
+  }];
+  const transferDraft = {
+    services: [{
+      instanceId: 'crowdsec-111aaa',
+      included: true,
+      baseUrl: 'http://192.168.1.20:8080',
+    }],
+    edgeAccess: {},
+  };
+
+  const bundle = buildBundle(crowdsec, cfg, transferDraft, installationId, metadata());
+  assert.equal(bundle.payload.services[0].credentialMode, 'password');
+  assert.equal(bundle.payload.services[0].disabled, true);
+  assert.deepEqual(bundle.payload.services[0].secrets, {});
+  assert.equal(bundle.summary[0].credentialState, 'sign-in');
+});
+
 test('Komodo requires both discovered credentials', () => {
   const komodo = [{
     instanceId: 'komodo-111aaa',

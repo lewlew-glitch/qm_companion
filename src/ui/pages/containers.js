@@ -1,9 +1,9 @@
 import { escapeHtml } from '../../http.js';
 import { widelyBoundFromListing } from '../../wide-bindings.js';
 import { config } from '../../config.js';
-import { labelFor, schemeFor } from '../../kinds.js';
+import { labelFor } from '../../kinds.js';
 import { marketplaceEntry } from '../../marketplace.js';
-import { I, badge, cState, healthDot, jsafe, stackClass } from '../bits.js';
+import { I, badge, cState, healthDot, jsafe, portChip, stackClass } from '../bits.js';
 import { board, shell, noSocket } from '../chrome.js';
 import { gridHeader, gridOpen, gridClose } from '../columns.js';
 
@@ -36,18 +36,6 @@ export function publicUrlFromLabels(labels) {
 
 // Use a dash for empty cells; titles explain ambiguous values.
 const off = () => '<span class="faint">-</span>';
-
-// Render published ports and any reverse-proxy URL.
-function portChip(c, p) {
-  const hostPort = String(p).split(':')[0];
-  if (!config.qmHost || !/^\d+$/.test(hostPort) || /udp/i.test(p)) {
-    return `<span class="badge port">${escapeHtml(p)}</span>`;
-  }
-  const scheme = c.kind ? schemeFor(c.kind) : 'http';
-  const href = `${scheme}://${config.qmHost}:${hostPort}`;
-  const out = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>';
-  return `<a class="badge port portlink" href="${escapeHtml(href)}" target="_blank" rel="noopener" title="Open ${escapeHtml(href)}">${escapeHtml(p)}${out}</a>`;
-}
 
 function portsCell(c) {
   const chips = c.ports.slice(0, 2).map((p) => portChip(c, p)).join('');

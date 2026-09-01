@@ -25,6 +25,10 @@ const MULTI = {
   gluetun: 'Gluetun needs the NET_ADMIN capability, which Companion does not deploy. Add it by hand.',
 };
 
+const MANUAL = {
+  crowdsec: 'CrowdSec needs access to the logs it protects and its own acquisition configuration. Run it separately, then point Companion at its Local API.',
+};
+
 // Shared linuxserver.io starter shape.
 const LS = new Set([
   'radarr', 'sonarr', 'lidarr', 'prowlarr', 'bazarr', 'sabnzbd', 'nzbget',
@@ -96,6 +100,7 @@ export function starterFor(kind) {
   if (HOST_OS.has(k)) return { blocked: 'This runs on your hardware, not as a container. Point Companion at its address instead.' };
   if (SOCKET[k]) return { blocked: SOCKET[k] };
   if (MULTI[k]) return { blocked: MULTI[k] };
+  if (MANUAL[k]) return { blocked: MANUAL[k] };
   if (LS.has(k) || PLAIN[k]) {
     const image = LS.has(k) ? `lscr.io/linuxserver/${k}:latest` : PLAIN[k].image;
     return { image, yaml: `${lines(k).join('\n')}\n`, notes: NOTES };

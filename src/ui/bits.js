@@ -2,7 +2,7 @@
 
 import { escapeHtml } from '../http.js';
 import { config } from '../config.js';
-import { pairingCredentialState } from '../kinds.js';
+import { pairingCredentialState, schemeFor } from '../kinds.js';
 import { hasIcon } from '../icons.js';
 import { cachedInfo } from '../docker.js';
 import { getPrefs } from '../store.js';
@@ -221,7 +221,7 @@ export const BRANDS = {
   tautulli: '#B8920E', jellystat: '#3B6BD6', streamystats: '#3B6BD6', tracearr: '#3B6BD6',
   portainer: '#13A8D6', dozzle: '#3E9BC0', dockhand: '#4258D6', komodo: '#7A55E0', beszel: '#C06046',
   glances: '#2B9494', scrutiny: '#3B6BD6', gluetun: '#3E9BC0', dispatcharr: '#3B6BD6',
-  pihole: '#D12B2E', adguard: '#3E9B4C', technitium: '#2E7FC4', nextdns: '#2270BE', controld: '#2270BE',
+  pihole: '#D12B2E', adguard: '#3E9B4C', technitium: '#2E7FC4', crowdsec: '#4E4A99', nextdns: '#2270BE', controld: '#2270BE',
   homeassistant: '#0BA4D8', unifi: '#2458C4', proxmox: '#C7501F',
   truenas: '#1E85C4', synology: '#2270BE', unraid: '#D93E12', ugreen: '#4258D6', coolify: '#6D5ED1',
   komga: '#348A5C', kavita: '#3B6BD6', audiobookshelf: '#D07E22', readmeabook: '#3E9E7E', bookorbit: '#3B6BD6',
@@ -251,6 +251,18 @@ export function tag(tone, text, icon) {
 // State cell with a coloured dot and label.
 export function state(tone, text) {
   return `<span class="state ${tone}"><i></i>${escapeHtml(text)}</span>`;
+}
+
+export function portChip(container, value, mono = false) {
+  const classes = `badge${mono ? ' mono' : ''} port`;
+  const hostPort = String(value).split(':')[0];
+  if (!config.qmHost || !/^\d+$/.test(hostPort) || /udp/i.test(value)) {
+    return `<span class="${classes}">${escapeHtml(value)}</span>`;
+  }
+  const scheme = container.kind ? schemeFor(container.kind) : 'http';
+  const href = `${scheme}://${config.qmHost}:${hostPort}`;
+  const out = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>';
+  return `<a class="${classes} portlink" href="${escapeHtml(href)}" target="_blank" rel="noopener" title="Open ${escapeHtml(href)}">${escapeHtml(value)}${out}</a>`;
 }
 
 // Escape JSON embedded in inline scripts so data cannot close the script element.

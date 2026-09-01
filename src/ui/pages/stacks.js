@@ -1,5 +1,5 @@
 import { escapeHtml } from '../../http.js';
-import { I, ESC_FN, LINT_FN, FOCUS_FN, lintPanel, badge, state, searchTools, cState, healthDot, metaOf, stackClass } from '../bits.js';
+import { I, ESC_FN, LINT_FN, FOCUS_FN, lintPanel, badge, state, searchTools, cState, healthDot, metaOf, portChip, stackClass } from '../bits.js';
 import { board, shell, noSocket } from '../chrome.js';
 import { gridHeader, gridOpen, gridClose } from '../columns.js';
 
@@ -40,7 +40,7 @@ export function stacksPage(stacks, control, csrf, managed = []) {
     const hasProtectedService = s.services.some((svc) => svc.protected);
     // Populate folded service meters from one stats response keyed by container id.
     const svcCards = s.services.map((svc) => {
-      const port = (svc.ports && svc.ports[0]) ? `<span class="badge mono port">${escapeHtml(svc.ports[0])}</span>` : '';
+      const port = (svc.ports && svc.ports[0]) ? portChip(svc, svc.ports[0], true) : '';
       const ip = svc.ip ? `<span class="badge line mono">${escapeHtml(svc.ip)}</span>` : '';
       const run = svc.state === 'running';
       const meter = (cls, label) => `<div class="meter ${cls}"><div class="m-row"><span>${label}</span><b data-cid="${escapeHtml(svc.id)}">${run ? '·' : 'Off'}</b></div><div class="m-bar"><i data-cid="${escapeHtml(svc.id)}"></i></div></div>`;

@@ -878,6 +878,8 @@ test('stack metrics poll without a host Live label', () => {
   const html = stacksPage(STACK_FIXTURES, true, 'csrf-token', ['media-stack']);
 
   assert.doesNotMatch(html, /class="livemark"/);
+  assert.match(html, /class="badge mono port portlink"/);
+  assert.match(html, /href="http:\/\/192\.168\.1\.20:8080" target="_blank" rel="noopener"/);
   assert.match(html, /pollStats\(\); setInterval\(pollStats, 5000\)/);
   assert.match(html, /answer\.missing \? ' partial'/);
   assert.match(html, /d\.unavailable \? 'Live container use, '/);

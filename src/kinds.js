@@ -8,7 +8,7 @@ export const PORTS = {
   tautulli: 8181, jellystat: 3000, streamystats: 3000, tracearr: 3000, maintainerr: 6246,
   portainer: 9443, dozzle: 8080, dockhand: 3000, komodo: 9120, arcane: 3552, beszel: 8090,
   glances: 61208, scrutiny: 8080, gluetun: 8000, coolify: 8000, dispatcharr: 9191,
-  adguard: 80, pihole: 80, technitium: 5380,
+  adguard: 80, pihole: 80, technitium: 5380, crowdsec: 8080,
   homeassistant: 8123, unifi: 443, proxmox: 8006,
   truenas: 443, synology: 5000, unraid: 80, ugreen: 9999,
   komga: 25600, kavita: 5000, audiobookshelf: 13378, readmeabook: 3030, bookorbit: 8080,
@@ -24,7 +24,7 @@ export function schemeFor(kind) {
 
 // Kinds that require interactive credentials rather than a transferable API key.
 export const NEEDS_LOGIN = new Set([
-  'qbittorrent', 'deluge', 'synology', 'nzbget', 'ugreen', 'musicseerr', 'beszel', 'bookorbit',
+  'qbittorrent', 'deluge', 'synology', 'nzbget', 'ugreen', 'musicseerr', 'beszel', 'bookorbit', 'crowdsec',
   // Komodo requires a two-part interactive credential.
   'komodo',
 ]);
@@ -97,7 +97,7 @@ export function matchImage(image, name) {
 const LABELS = {
   qbittorrent: 'qBittorrent', sabnzbd: 'SABnzbd', nzbget: 'NZBGet', nzbhydra2: 'NZBHydra2',
   jellyfin: 'Jellyfin', jellyseerr: 'Jellyseerr', musicseerr: 'MusicSeerr', plex: 'Plex',
-  homeassistant: 'Home Assistant', unifi: 'UniFi', truenas: 'TrueNAS', adguard: 'AdGuard Home',
+  homeassistant: 'Home Assistant', unifi: 'UniFi', truenas: 'TrueNAS', adguard: 'AdGuard Home', crowdsec: 'CrowdSec',
   pihole: 'Pi-hole', audiobookshelf: 'Audiobookshelf', portainer: 'Portainer', tautulli: 'Tautulli',
 };
 

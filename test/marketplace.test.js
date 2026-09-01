@@ -60,6 +60,7 @@ test('publishes a curated HTTPS project link for every catalogue entry', () => {
     komodo: 'https://github.com/moghtech/komodo',
     arcane: 'https://github.com/getarcaneapp/arcane',
     gluetun: 'https://github.com/passteque/gluetun',
+    crowdsec: 'https://github.com/crowdsecurity/crowdsec',
     unifi: 'https://ui.com/download',
     synology: 'https://www.synology.com/en-global/dsm',
     ugreen: 'https://www.ugreen.com/en-gb/collections/uk-nas',
@@ -95,7 +96,7 @@ test('lists starters only for supported single-container services', () => {
     assert.ok(entry.starter && typeof entry.starter.yaml === 'string' && entry.starter.yaml.includes('services:'), kind);
   }
 
-  for (const kind of ['proxmox', 'truenas', 'synology', 'unraid', 'ugreen', 'immich', 'komodo']) {
+  for (const kind of ['proxmox', 'truenas', 'synology', 'unraid', 'ugreen', 'immich', 'komodo', 'crowdsec']) {
     const entry = marketplaceEntry(kind);
     assert.equal(entry.mode, MARKETPLACE_MODES.CONNECT_ONLY, kind);
     assert.equal(entry.starter, null, kind);
