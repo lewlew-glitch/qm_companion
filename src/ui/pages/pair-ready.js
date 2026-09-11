@@ -40,6 +40,7 @@ export function pairReadyPage({ bundle, qrDataUrl, filePath, csrf }) {
         </ol>
         <p class="cc-hint">The .qmcompanion fallback opens only in Quartermaster's Companion setup. Downloading it consumes the same transfer, so the QR will no longer redeem. If setup is interrupted after redemption, create a fresh transfer.</p>
         <form method="post" action="/pair/reissue" class="reissue-form" id="reissue" hidden>
+          <input type="hidden" name="bundleId" value="${escapeHtml(bundle.companion.bundleId)}">
           <input type="hidden" name="csrf" value="${escapeHtml(csrf || '')}">
           <div class="reissue-banner" id="reissue-msg"></div>
           <button class="btn primary" type="submit">Re-issue with the new key</button>

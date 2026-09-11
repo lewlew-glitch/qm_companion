@@ -415,7 +415,9 @@ test('HTTP gates and pairing handoff fail closed end to end', async (t) => {
   assert.equal((await jsonPost('/pair/reissue', {})).status, 401, 'anonymous re-issue is refused');
   assert.equal((await jsonPost('/pair/reissue', {}, bearerHeaders)).status, 401, 'bearer tokens cannot re-issue');
   assert.equal((await jsonPost('/pair/reissue', { csrf: 'wrong' }, { cookie: sessionCookie })).status, 403, 'a wrong body csrf is refused');
-  const reissued = await fetch(`${origin}/pair/reissue`, { method: 'POST', headers: pairHeaders, body: new URLSearchParams({ csrf }).toString(), redirect: 'manual' });
+  const bundleId = /name="bundleId" value="([^"]+)"/.exec(readyHtml)?.[1];
+  assert.ok(bundleId);
+  const reissued = await fetch(`${origin}/pair/reissue`, { method: 'POST', headers: pairHeaders, body: new URLSearchParams({ csrf, bundleId }).toString(), redirect: 'manual' });
   assert.equal(reissued.status, 200, stderr);
   const reissuedHtml = await reissued.text();
   assert.match(reissuedHtml, /One-time transfer ready/, 're-issue renders a fresh ready page');

@@ -149,10 +149,16 @@ test('rejects stale forced submissions and rechecks reissues', async (t) => {
 
   const forced = await fetch(`${origin}/pair`, { method: 'POST', headers: pairHeaders, body: body(true), redirect: 'manual' });
   assert.equal(forced.status, 200, stderr);
-  assert.match(await forced.text(), /One-time transfer ready/);
-  const reissued = await fetch(`${origin}/pair/reissue`, { method: 'POST', headers: pairHeaders, body: new URLSearchParams({ csrf }).toString(), redirect: 'manual' });
+  const forcedHtml = await forced.text();
+  assert.match(forcedHtml, /One-time transfer ready/);
+  const firstBundleId = /name="bundleId" value="([^"]+)"/.exec(forcedHtml)?.[1];
+  assert.ok(firstBundleId);
+  const reissued = await fetch(`${origin}/pair/reissue`, { method: 'POST', headers: pairHeaders, body: new URLSearchParams({ csrf, bundleId: firstBundleId }).toString(), redirect: 'manual' });
   assert.equal(reissued.status, 200, stderr);
-  assert.match(await reissued.text(), /One-time transfer ready/);
+  const reissuedHtml = await reissued.text();
+  assert.match(reissuedHtml, /One-time transfer ready/);
+  const currentBundleId = /name="bundleId" value="([^"]+)"/.exec(reissuedHtml)?.[1];
+  assert.ok(currentBundleId);
 
   container.State = 'exited';
   container.Ports = [];
@@ -167,7 +173,7 @@ test('rejects stale forced submissions and rechecks reissues', async (t) => {
   assert.match(staleRow, /data-avail="not-running" data-docker-state="exited"/);
   assert.doesNotMatch(staleRow, /data-include-anyway|Include anyway/);
   assert.match(staleRow, /<input type="checkbox" name="include_\d+"\s+disabled>/);
-  const staleReissue = await fetch(`${origin}/pair/reissue`, { method: 'POST', headers: pairHeaders, body: new URLSearchParams({ csrf }).toString(), redirect: 'manual' });
+  const staleReissue = await fetch(`${origin}/pair/reissue`, { method: 'POST', headers: pairHeaders, body: new URLSearchParams({ csrf, bundleId: currentBundleId }).toString(), redirect: 'manual' });
   assert.equal(staleReissue.status, 400);
   assert.match(await staleReissue.text(), /is stopped in Docker/);
 

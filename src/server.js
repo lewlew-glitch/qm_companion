@@ -363,11 +363,25 @@ function retainPairDraft(token, record) {
   pairDrafts.set(token, { ...record, at: now });
 }
 
-function takePairDraft(token) {
+function takePairDraft(token, bundleId) {
   const record = pairDrafts.get(token);
-  pairDrafts.delete(token);
-  if (!record || Date.now() - record.at > PAIR_DRAFT_TTL_MS) return null;
+  if (!record || record.bundleId !== bundleId || record.inFlight) return null;
+  if (Date.now() - record.at > PAIR_DRAFT_TTL_MS) {
+    pairDrafts.delete(token);
+    return null;
+  }
+  // Hold ownership across discovery and QR awaits. A newer transfer replaces this exact record.
+  record.inFlight = true;
   return record;
+}
+
+async function renderStalePairDraft(res, csrf) {
+  const detected = await currentServices();
+  const draft = defaultPairDraft(detected, config);
+  draft.services = draft.services.map((service) => ({ ...service, included: false }));
+  return renderPairForm(res, 409, detected, draft, csrf, [
+    'This transfer is no longer current. Review the services and create a new transfer.',
+  ]);
 }
 
 async function handleDashboard(req, res, csrf) {
@@ -699,8 +713,8 @@ async function handlePairKeysForget(req, res) {
 async function handlePairReissue(req, res, token, csrf, auth) {
   const body = await readBody(req);
   if (!checkCsrf(token, String(body.csrf || ''), auth.plane)) return json(res, 403, { error: 'bad csrf token' });
-  const retained = takePairDraft(token);
-  if (!retained) return renderPairForm(res, 409, await currentServices(), defaultPairDraft(await currentServices(), config), csrf, ['There is nothing to re-issue. Review the routes and create a fresh transfer.']);
+  const retained = takePairDraft(token, String(body.bundleId || ''));
+  if (!retained) return renderStalePairDraft(res, csrf);
   const now = Date.now();
   const metadata = {
     bundleId: randomBytes(18).toString('base64url'),
@@ -723,13 +737,19 @@ async function handlePairReissue(req, res, token, csrf, auth) {
       pairTransfers.invalidateBundle(bundle.companion.bundleId);
       throw error;
     }
+    if (pairDrafts.get(token) !== retained) {
+      pairTransfers.invalidateBundle(bundle.companion.bundleId);
+      return renderStalePairDraft(res, csrf);
+    }
     pairTransfers.invalidateBundle(retained.bundleId);
     retainPairDraft(token, { draft: retained.draft, origin: retained.origin, bundleId: bundle.companion.bundleId });
     addAudit('re-issued the setup transfer with a newly arrived key');
     return pairHtml(res, 200, pairPage({ stage: 'ready', csrf, bundle, qrDataUrl, filePath: `/pair/file/${transfer.pairId}` }));
   } catch (error) {
     const issues = error instanceof PairingValidationError ? error.issues : ['The transfer could not be re-issued. Open Set up and create a fresh one.'];
-    return renderPairForm(res, 400, await currentServices(), defaultPairDraft(await currentServices(), config), csrf, issues);
+    if (pairDrafts.get(token) !== retained) return renderStalePairDraft(res, csrf);
+    retained.inFlight = false;
+    return renderPairForm(res, 400, await currentServices(), displayDraft(retained.draft), csrf, issues);
   }
 }
 
