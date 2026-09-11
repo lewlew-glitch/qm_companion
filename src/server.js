@@ -27,6 +27,7 @@ import { dockerAccessState, dockerModeRank, dockerModeAllows, setDockerAccessMod
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { gatherLive } from './live.js';
 import { buildBundle, defaultPairDraft, suggestedBaseUrl, PairingValidationError } from './build.js';
+import { draftFromPairForm } from './pair-form.js';
 import { mintKey, MINT_ENABLED_KINDS, isMintEnabled, mintTransportOk } from './mint.js';
 import { isSafeInspectableEnvValue, isSafeInspectableLabelValue } from './secretscan.js';
 import { isProtectedContainer } from './protect.js';
@@ -408,42 +409,6 @@ function pairInputError(reason) {
   return 'The setup form could not be read. Reload this page and try again.';
 }
 
-function draftFromPairForm(detected, body) {
-  const rows = [];
-  const posted = new Set();
-  for (let i = 0; i < 100; i += 1) {
-    if (!Object.hasOwn(body, `service_${i}`)) continue;
-    const instanceId = String(body[`service_${i}`] || '');
-    if (posted.has(instanceId)) {
-      rows.push({ instanceId, included: true, baseUrl: '', remoteBaseUrl: '' });
-      continue;
-    }
-    posted.add(instanceId);
-    rows.push({
-      instanceId,
-      included: body[`include_${i}`] === 'on',
-      // buildBundle revalidates this reachability override.
-      forced: body[`force_${i}`] === 'on',
-      baseUrl: String(body[`base_${i}`] || ''),
-      remoteBaseUrl: String(body[`remote_${i}`] || ''),
-    });
-  }
-
-  // Preserve newly discovered rows without selecting them in a stale form submission.
-  for (const d of detected) {
-    if (d.instanceId && !posted.has(d.instanceId)) {
-      rows.push({ instanceId: d.instanceId, included: false, baseUrl: '', remoteBaseUrl: '' });
-    }
-  }
-  return {
-    services: rows,
-    edgeAccess: {
-      domain: String(body.edge_domain || ''),
-      clientId: String(body.edge_client_id || ''),
-      clientSecret: String(body.edge_client_secret || ''),
-    },
-  };
-}
 
 function displayDraft(draft) {
   return {
