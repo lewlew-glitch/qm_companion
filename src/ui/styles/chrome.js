@@ -2,8 +2,9 @@
 
 export const chrome = `/* ---------- shell ---------- */
 .app { display: grid; grid-template-columns: 224px 1fr; height: 100vh; }
-.side { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 16px 10px 12px; }
-.side-menu { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+.side { min-height: 0; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 16px 10px 12px; }
+.side-menu { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+.side-menu > * { flex-shrink: 0; }
 .top-brand { display: flex; align-items: center; gap: 10px; padding: 2px 10px 16px; }
 .top-brand .mark { width: 30px; height: 30px; border-radius: 50%; overflow: hidden; flex: none; }
 .mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -28,6 +29,17 @@ button.nav { width: 100%; border: 0; background: none; font-family: inherit; tex
 .mode-nav-value { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); font-size: 10.5px; font-weight: 500; }
 .mode-nav:hover .mode-nav-value { color: var(--fg-2); }
 .side .spacer { flex: 1; }
+.companion-update { display: flex; align-items: center; gap: 10px; margin: 12px 0 10px; padding: 10px 12px; min-height: 48px; border-radius: var(--radius-sm); color: var(--accent-2); background: var(--accent-soft); }
+.companion-update > svg { width: 16px; height: 16px; flex: none; stroke: currentColor; }
+.companion-update > svg:last-child { margin-left: auto; }
+.companion-update span { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.companion-update b { font-size: 12.5px; font-weight: 600; }
+.companion-update small { font-size: 11px; }
+.companion-update:hover { background: var(--lift); }
+.companion-update:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
+.release-links { display: flex; flex-wrap: wrap; gap: 12px 20px; padding: 12px 0; }
+.release-links a { color: var(--accent-2); text-decoration: underline; text-underline-offset: 3px; }
+.release-links a:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 3px; }
 .side .foot { display: flex; align-items: center; gap: 6px; padding: 8px 6px 0; border-top: 1px solid var(--border); }
 .iconbtn { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: var(--radius-sm); background: none; color: var(--fg-2); cursor: pointer; }
 .iconbtn svg { width: 16px; height: 16px; stroke: currentColor; }

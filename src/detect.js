@@ -24,8 +24,8 @@ const MAX_KEY_CHARS = 16_384;
 const HOMEPAGE_SCALAR_KEY_KINDS = new Set([
   'radarr', 'sonarr', 'lidarr', 'prowlarr', 'bazarr', 'sabnzbd', 'jackett', 'nzbhydra2', 'qui',
   'jellyfin', 'emby', 'plex', 'jellyseerr', 'wizarr', 'tautulli', 'jellystat', 'tracearr',
-  'portainer', 'arcane', 'coolify', 'technitium', 'homeassistant', 'truenas', 'unraid', 'kavita',
-  'audiobookshelf', 'readmeabook', 'shelfarr', 'immich',
+  'portainer', 'dockhand', 'pihole', 'arcane', 'coolify', 'technitium', 'homeassistant', 'truenas', 'unraid', 'kavita',
+  'audiobookshelf', 'readmeabook', 'shelfarr', 'immich', 'komga', 'tdarr', 'gluetun',
 ]);
 
 const CONFIG_CREDENTIAL_FILES = {
@@ -51,11 +51,11 @@ export function configFileRule(kind) {
 }
 
 const HOMEPAGE_TYPE_ALIASES = new Map([
-  ['overseerr', 'jellyseerr'],
+  ['overseerr', 'jellyseerr'], ['seerr', 'jellyseerr'],
 ]);
 
 const CONFIG_MOUNT_KIND_ALIASES = new Map([
-  ['overseerr', 'jellyseerr'],
+  ['overseerr', 'jellyseerr'], ['seerr', 'jellyseerr'],
 ]);
 
 function credentialValue(value) {
@@ -671,7 +671,7 @@ export function applyMintedKeys(services, mintedKeys) {
       if (existing !== record.apiKey) stale.push(row.instanceId);
       return row;
     }
-    return { ...row, apiKey: record.apiKey };
+    return { ...row, apiKey: record.apiKey, storedCredential: true };
   });
   return { services: rows, stale };
 }

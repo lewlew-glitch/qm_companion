@@ -23,7 +23,7 @@ export function pairReadyPage({ bundle, qrDataUrl, filePath, csrf }) {
   const awaiting = bundle.summary.filter((s) => !s.hasKey).map((s) => ({ instanceId: s.instanceId, label: s.label }));
   return shell('pair', csrf || null, meta, `
     ${board('pair', 'One-time transfer ready', '', meta)}
-    <p class="sub">Scan once to import the reviewed routes and every credential marked Included. The encrypted transfer disappears after the first download or when the timer ends.</p>
+    <p class="sub">Every service listed below is included. The badges describe which credentials come with it. Quartermaster checks each connection before saving; services without credentials may need you to sign in. The encrypted transfer disappears after the first download or when the timer ends.</p>
     ${awaiting.length ? liveCheckMarkup('pair-ready-live', 'Watching for late keys. Checked when this page loaded.') : ''}
     <div class="pair-wrap">
       <div>
@@ -47,6 +47,7 @@ export function pairReadyPage({ bundle, qrDataUrl, filePath, csrf }) {
         </form>
         <div class="sec-h">Handing over ${bundle.summary.length} service${bundle.summary.length === 1 ? '' : 's'}</div>
         <div class="pair-ready-list">${rows}</div>
+        <p class="cc-hint">To include a missing API key, <a href="/pair">return to setup</a> and create or paste it before making a fresh transfer.</p>
       </div>
     </div>
     <script>

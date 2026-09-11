@@ -82,6 +82,11 @@ Use a trusted private network for plain HTTP. Put Companion behind a trusted HTT
 
 Saltbox installations can use the supplied Traefik overlay; see [Saltbox](docs/saltbox.md).
 
+## Updates
+
+A notice above Sign out links to a newer Companion release when one is available. See
+[Updating Companion](docs/updating.md) for Compose, container-manager and release-check settings.
+
 ## Docker access profiles
 
 The Compose profile sets the maximum Docker access available to Companion:

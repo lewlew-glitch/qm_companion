@@ -275,30 +275,30 @@ export const FAVICON = '/assets/logo.png';
 export const MARK = '<img src="/assets/logo.png" alt="Quartermaster">';
 
 export function credentialTag(d, context = 'dashboard') {
-  const status = d.credentialState || pairingCredentialState(d.kind, d.apiKey, d.credentialConflict);
+  const status = d.credentialState || (d.hasKey === true ? 'included' : pairingCredentialState(d.kind, d.apiKey, d.credentialConflict));
   const wording = {
     dashboard: {
-      included: 'Included in scan',
-      'not-required': 'No key required',
+      included: 'Credential available',
+      'not-required': 'No credential supplied',
       'sign-in': 'Sign in on phone',
       'key-and-secret': 'Needs setup',
       'missing-key': 'Needs setup',
       conflict: 'Credential conflict',
     },
     configure: {
-      included: 'Included automatically',
-      'not-required': 'No key needed',
+      included: 'Credential available',
+      'not-required': 'No credential supplied',
       'sign-in': 'Sign in after pairing',
       'key-and-secret': 'Key and secret needed',
       'missing-key': 'Needs setup',
       conflict: 'Check key sources',
     },
     ready: {
-      included: 'Included',
-      'not-required': 'No key needed',
+      included: 'Credential included',
+      'not-required': 'No credential supplied',
       'sign-in': 'Sign in later',
-      'key-and-secret': 'Not included',
-      'missing-key': 'Not included',
+      'key-and-secret': 'Add key and secret in app',
+      'missing-key': 'Add API key in app',
       conflict: 'Not transferred',
     },
   }[context];

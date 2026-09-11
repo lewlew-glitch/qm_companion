@@ -30,7 +30,8 @@ const SETTINGS_PATH = {
   wizarr: '/settings', jellystat: '/settings', tracearr: '/settings', dockhand: '/settings',
   coolify: '/security/api-tokens', dispatcharr: '/settings', unifi: '/', unraid: '/Settings',
   kavita: '/preferences#authentication', audiobookshelf: '/config', readmeabook: '/settings', shelfarr: '/settings',
-  homeassistant: '/profile/security',
+  homeassistant: '/profile/security', pihole: '/admin/', streamystats: '/',
+  tdarr: '/', gluetun: '/', plex: '/web',
 };
 
 // Derive file-backed kinds directly from discovery rules.
@@ -51,9 +52,18 @@ function fileRuleFor(kind) {
   };
 }
 
-// Return the single recovery rung for a missing-key kind.
+// Only offer a scalar credential when the app supports that service's exact mode.
+export function canSaveManualKey(kind, apiKey, credentialConflict = false) {
+  if (!Object.hasOwn(PORTS, kind)) return false;
+  const state = pairingCredentialState(kind, apiKey, credentialConflict);
+  return state === 'missing-key'
+    || (['pihole', 'streamystats', 'tdarr', 'gluetun'].includes(kind) && state === 'not-required')
+    || (kind === 'plex' && state === 'sign-in');
+}
+
+// Return the credential method, including supported optional scalar credentials.
 export function ladderFor(kind) {
-  if (pairingCredentialState(kind) !== 'missing-key') return null;
+  if (!canSaveManualKey(kind)) return null;
   const settingsPath = SETTINGS_PATH[kind];
   const fileRule = fileRuleFor(kind);
   if (fileRule) return { class: 'file', fileRule, settingsPath };

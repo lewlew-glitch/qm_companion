@@ -149,7 +149,7 @@ test('renders controls for each availability group', () => {
   assert.match(lidarr, /<span class="badge bad">[\s\S]*?Stopped<\/span>/);
   assert.match(lidarr, /data-avail-note-text>Stopped in Docker\. Start it in Docker; this page updates on its own\.</);
   assert.doesNotMatch(lidarr, /data-include-anyway|Include anyway/, 'a not-running row has no override control');
-  assert.doesNotMatch(lidarr, /Included automatically/);
+  assert.doesNotMatch(lidarr, /Credential available/);
 
   const prowlarr = rowFor(html, 'prowlarr-unverified');
   assert.match(prowlarr, /class="pair-service is-unverified"/);
@@ -163,7 +163,7 @@ test('renders controls for each availability group', () => {
   assert.match(radarr, /class="pair-service" data-pair-row/);
   assert.match(radarr, /data-avail="reachable"/);
   assert.match(radarr, /<input type="checkbox" name="include_0" checked\s*>/);
-  assert.match(radarr, /Included automatically/);
+  assert.match(radarr, /Credential available/);
   assert.match(radarr, /data-avail-note hidden>/);
   assert.match(radarr, /data-override-slot><\/span>/, 'and an empty override slot');
 

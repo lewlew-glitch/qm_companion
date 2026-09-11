@@ -194,7 +194,7 @@ test('uses consistent Marketplace deployment and pairing state', () => {
     {
       name: 'installed service needs no key', entry: connectOnly,
       context: { installed: true, control: true, detectionKnown: true, credentialState: 'not-required' },
-      expected: { state: 'installed-no-key', badgeLabel: 'No key needed', actionLabel: 'Review setup', canDeploy: false, credentialState: 'not-required' },
+      expected: { state: 'installed-no-key', badgeLabel: 'No credential supplied', actionLabel: 'Review setup', canDeploy: false, credentialState: 'not-required' },
     },
     {
       name: 'installed service signs in after pairing', entry: generated,

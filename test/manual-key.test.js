@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createDecipheriv, scryptSync } from 'node:crypto';
 import { createServer as createHttpServer } from 'node:http';
 import { createServer as createNetServer } from 'node:net';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
@@ -73,15 +74,22 @@ function jsonReply(res, status, value) {
   res.end(body);
 }
 
-test('manual pairing keys remain sealed and are not echoed', async (t) => {
+for (const fixture of [
+  { kind: 'homeassistant', image: 'ghcr.io/home-assistant/home-assistant:stable', port: 8123, signature: 'Home Assistant' },
+  { kind: 'pihole', image: 'pihole/pihole:latest', port: 18080, signature: 'Pi-hole' },
+  { kind: 'streamystats', image: 'ghcr.io/fredrikburmester/streamystats:latest', port: 18081, signature: 'Streamystats' },
+  { kind: 'tdarr', image: 'ghcr.io/haveagitgat/tdarr:latest', port: 18082, signature: 'Tdarr' },
+  { kind: 'gluetun', image: 'qmcgaw/gluetun:latest', port: 18083, signature: 'Gluetun' },
+  { kind: 'plex', image: 'plexinc/pms-docker:latest', port: 18084, signature: 'MediaContainer' },
+]) test(`${fixture.kind} manual pairing credentials remain sealed and are not echoed`, async (t) => {
   const docker = createHttpServer((req, res) => {
     if (req.method === 'GET' && req.url === '/containers/json?all=1') {
       return jsonReply(res, 200, [{
         Id: 'a'.repeat(64),
-        Names: ['/qm-ha'],
-        Image: 'ghcr.io/home-assistant/home-assistant:stable',
-        Ports: [{ PrivatePort: 8123, PublicPort: 8123, Type: 'tcp' }],
-        Labels: { 'com.docker.compose.service': 'qm-ha' },
+        Names: [`/qm-${fixture.kind}`],
+        Image: fixture.image,
+        Ports: [{ PrivatePort: fixture.port, PublicPort: fixture.port, Type: 'tcp' }],
+        Labels: { 'com.docker.compose.service': `qm-${fixture.kind}` },
         State: 'running',
         Status: 'Up',
       }]);
@@ -89,7 +97,7 @@ test('manual pairing keys remain sealed and are not echoed', async (t) => {
     return jsonReply(res, 404, { message: 'not available in this test' });
   });
   const dockerPort = await listen(docker);
-  const homeAssistant = await listenAs(8123, 'Home Assistant');
+  const serviceServer = await listenAs(fixture.port, fixture.signature);
 
   const port = await freePort();
   const dataDir = mkdtempSync(join(tmpdir(), 'qm-manual-key-'));
@@ -120,7 +128,7 @@ test('manual pairing keys remain sealed and are not echoed', async (t) => {
       await new Promise((resolve) => child.once('exit', resolve));
     }
     await new Promise((resolve) => docker.close(resolve));
-    await new Promise((resolve) => homeAssistant.close(resolve));
+    await new Promise((resolve) => serviceServer.close(resolve));
     rmSync(dataDir, { recursive: true, force: true });
   });
 
@@ -140,7 +148,7 @@ test('manual pairing keys remain sealed and are not echoed', async (t) => {
   assert.equal(pair.status, 200, stderr);
   const pairHtml = await pair.text();
   const csrf = (pairHtml.match(/name="csrf" content="([a-f0-9]+)"/) || [])[1];
-  const instanceId = (pairHtml.match(/data-instance="([^"]+)" data-kind="homeassistant"/) || [])[1];
+  const instanceId = (pairHtml.match(new RegExp(`data-instance="([^"]+)" data-kind="${fixture.kind}"`)) || [])[1];
   assert.ok(csrf && instanceId);
   assert.match(pairHtml, /data-manual-key type="password" maxlength="16384"/);
 
@@ -181,7 +189,7 @@ test('manual pairing keys remain sealed and are not echoed', async (t) => {
   }
 
   const unknown = await postManual({
-    instanceId: `homeassistant-${'0'.repeat(16)}`,
+    instanceId: `${fixture.kind}-${'0'.repeat(16)}`,
     apiKey: 'BADSECRETFRAGMENT-unknown',
   }, secured);
   assert.equal(unknown.status, 404);
@@ -201,6 +209,7 @@ test('manual pairing keys remain sealed and are not echoed', async (t) => {
   const service = JSON.parse(servicesText).services.find((row) => row.instanceId === instanceId);
   assert.equal(service.credentialState, 'included', 'polling data flips the row to Included');
   assert.equal(service.hasKey, true);
+  assert.equal(service.storedCredential, true);
 
   const overwrite = await postManual({ instanceId, apiKey: 'BADSECRETFRAGMENT-overwrite' }, secured);
   assert.equal(overwrite.status, 409);
@@ -210,6 +219,21 @@ test('manual pairing keys remain sealed and are not echoed', async (t) => {
   const refreshedHtml = await refreshedPair.text();
   assert.equal(refreshedPair.status, 200);
   assert.doesNotMatch(refreshedHtml, /TOPSECRETFRAGMENT/);
+  assert.match(refreshedHtml, /data-minted="1"/);
+  assert.match(refreshedHtml, /class="key-made on" data-made/);
+  assert.match(refreshedHtml, /data-forget>Remove from Companion</);
+  assert.match(refreshedHtml, /class="pair-ladder" data-ladder hidden/);
+  const removed = await fetch(`${origin}/pair/keys/forget`, {
+    method: 'POST', headers: { 'content-type': 'application/json', ...secured },
+    body: JSON.stringify({ instanceId }),
+  });
+  assert.equal(removed.status, 200);
+  const afterRemoval = await (await fetch(`${origin}/pair`, { headers: { cookie: sessionCookie } })).text();
+  assert.match(afterRemoval, /class="pair-ladder" data-ladder>/, 'replacement is available after reload');
+  assert.doesNotMatch(afterRemoval, /data-minted="1"|class="key-made on"/);
+  const replacementKey = 'qm-TOPSECRETFRAGMENT-replacement';
+  const replacement = await postManual({ instanceId, apiKey: replacementKey }, secured);
+  assert.equal(replacement.status, 200);
   const ready = await fetch(`${origin}/pair`, {
     method: 'POST',
     headers: {
@@ -221,7 +245,7 @@ test('manual pairing keys remain sealed and are not echoed', async (t) => {
       csrf,
       service_0: instanceId,
       include_0: 'on',
-      base_0: 'http://127.0.0.1:8123',
+      base_0: `http://127.0.0.1:${fixture.port}`,
       remote_0: '',
       edge_domain: '',
       edge_client_id: '',
@@ -238,6 +262,20 @@ test('manual pairing keys remain sealed and are not echoed', async (t) => {
   assert.equal(transfer.status, 200);
   const envelope = await transfer.text();
   assert.doesNotMatch(envelope, /TOPSECRETFRAGMENT/, 'the transfer contains only ciphertext');
+  const setupCode = (readyHtml.match(/id="setup-code">([^<]+)</) || [])[1];
+  assert.ok(setupCode);
+  const sealed = JSON.parse(envelope);
+  const key = scryptSync(setupCode, Buffer.from(sealed.kdf.saltHex, 'hex'), 48, {
+    N: sealed.kdf.N, r: sealed.kdf.r, p: sealed.kdf.p, maxmem: 256 * 1024 * 1024,
+  }).subarray(0, 32);
+  const ciphertext = Buffer.from(sealed.ciphertextHex, 'hex');
+  const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(sealed.cipher.nonceHex, 'hex'));
+  decipher.setAuthTag(ciphertext.subarray(-16));
+  const payload = JSON.parse(Buffer.concat([decipher.update(ciphertext.subarray(0, -16)), decipher.final()]));
+  assert.equal(payload.services.length, 1, 'the real file includes the selected service exactly once');
+  assert.equal(payload.services[0].kind, fixture.kind);
+  assert.equal(payload.services[0].secrets.apiKey, replacementKey, 'the replacement saved credential reaches the phone');
+  assert.equal(payload.services[0].disabled, undefined);
 
   const rawState = readFileSync(join(dataDir, 'qm-companion.json'), 'utf8');
   assert.doesNotMatch(rawState, /TOPSECRETFRAGMENT/);
@@ -258,7 +296,7 @@ test('manual pairing keys remain sealed and are not echoed', async (t) => {
       DATA_DIR: dataDir,
       QM_HOST: '127.0.0.1',
       EXPECTED_INSTANCE: instanceId,
-      EXPECTED_TEST_KEY: expectedKey,
+      EXPECTED_TEST_KEY: replacementKey,
     },
     encoding: 'utf8',
   });

@@ -23,6 +23,11 @@ test('credential recovery reads allowlisted stack files', async (t) => {
     { kind: 'sabnzbd', file: 'sabnzbd.ini', value: '[misc]\napi_key = sabnzbd-key\n', key: 'sabnzbd-key' },
     { kind: 'jellyseerr', file: 'settings.json', value: JSON.stringify({ main: { apiKey: 'jellyseerr-key' } }), key: 'jellyseerr-key' },
     {
+      kind: 'jellyseerr', name: 'seerr-main', file: 'settings.json',
+      value: JSON.stringify({ main: { apiKey: 'seerr-key' }, jellyfin: { apiKey: 'other-server-key' } }),
+      key: 'seerr-key', image: 'ghcr.io/seerr-team/seerr:latest',
+    },
+    {
       kind: 'jellyseerr',
       name: 'overseerr',
       file: 'settings.json',

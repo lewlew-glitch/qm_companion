@@ -309,7 +309,12 @@ test('renders next steps for deferred pairing credentials', () => {
 
   assert.match(html, /class="pair-readiness" id="pair-readiness"/);
   assert.match(html, /id="pair-ready-line">2 selected services need setup after pairing/);
-  assert.match(html, /data-kind="plex" data-cred-state="sign-in"[\s\S]*?data-next-step[\s\S]*?complete its sign-in/);
+  const plexRow = html.match(/<section[^>]*data-kind="plex" data-cred-state="sign-in"[\s\S]*?<\/section>/)?.[0];
+  assert.ok(plexRow, 'Plex remains awaiting sign-in when no token was supplied');
+  assert.match(plexRow, /Plex X-Plex-Token \(optional\)/);
+  assert.match(plexRow, /data-manual-key type="password"/);
+  assert.doesNotMatch(plexRow, /data-manual-key[^>]*\bvalue=/);
+  assert.match(plexRow, /Leave this empty to sign in with the Plex PIN flow on your phone after pairing/);
   assert.match(html, /data-kind="komodo" data-cred-state="key-and-secret"[\s\S]*?create an API key plus API secret[\s\S]*?add both in Quartermaster/);
   assert.ok(compileInlineScripts(html) >= 3);
 });

@@ -75,9 +75,9 @@ export function marketplacePresentation(entry = {}, context = {}) {
         detailCopy: `This service and its detected API key can be included in the next encrypted transfer.${dockerNote}`,
       },
       'not-required': {
-        state: 'installed-no-key', filter: 'ready', badgeTone: 'info', badgeLabel: 'No key needed', badgeIcon: 'check',
-        actionLabel: 'Review setup', primary: false, detailTitle: 'No key needed',
-        detailCopy: `This service can be included in the next encrypted transfer without an API key.${dockerNote}`,
+        state: 'installed-no-key', filter: 'ready', badgeTone: 'info', badgeLabel: 'No credential supplied', badgeIcon: 'check',
+        actionLabel: 'Review setup', primary: false, detailTitle: 'No credential supplied',
+        detailCopy: `Its addresses can be included without a credential. The phone will check whether this instance requires sign-in.${dockerNote}`,
       },
       'sign-in': {
         state: 'installed-sign-in', filter: 'ready', badgeTone: 'info', badgeLabel: 'Sign in after pairing', badgeIcon: 'link',

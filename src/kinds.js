@@ -35,10 +35,17 @@ export const CREDENTIAL_OPTIONAL = new Set([
   'streamystats', 'shelfmark',
 ]);
 
+// These optional modes use login or proxy authentication, not a scalar API key.
+const OPTIONAL_LOGIN = new Set(['transmission', 'adguard', 'dozzle', 'maintainerr', 'scrutiny', 'shelfmark']);
+
+export function canTransferApiKey(kind) {
+  return Object.hasOwn(PORTS, kind) && !NEEDS_LOGIN.has(kind) && !OPTIONAL_LOGIN.has(kind);
+}
+
 // Classify transfer readiness; credential extraction remains in the build path.
 export function pairingCredentialState(kind, apiKey, credentialConflict = false) {
   if (credentialConflict) return 'conflict';
-  const hasTransferableKey = !NEEDS_LOGIN.has(kind) && typeof apiKey === 'string' && apiKey.length > 0;
+  const hasTransferableKey = canTransferApiKey(kind) && typeof apiKey === 'string' && apiKey.length > 0;
   if (hasTransferableKey) return 'included';
   if (CREDENTIAL_OPTIONAL.has(kind)) return 'not-required';
   if (kind === 'komodo') return 'key-and-secret';
@@ -68,6 +75,7 @@ function normalise(s) {
 }
 
 function exactKind(candidate) {
+  if (candidate === 'seerr') return 'jellyseerr';
   for (const [alias, kind] of Object.entries(ALIASES)) {
     if (candidate === normalise(alias)) return kind;
   }
@@ -76,7 +84,7 @@ function exactKind(candidate) {
 
 // Map an image or fallback container name to a service kind.
 export function matchImage(image, name) {
-  const imageBase = String(image || '').split('/').pop().split(':')[0];
+  const imageBase = String(image || '').split('/').pop().split('@')[0].split(':')[0];
   const candidates = [imageBase, image, name].map(normalise).filter(Boolean);
 
   for (const c of candidates) {

@@ -7,6 +7,7 @@ import {
   NEEDS_LOGIN,
   labelFor,
   pairingCredentialState,
+  canTransferApiKey,
 } from './kinds.js';
 import { availabilityFor, dockerStateWord } from './availability.js';
 import { schemeForKindPorts } from './probe.js';
@@ -234,7 +235,7 @@ export function buildBundle(detected, cfg, draft, installationId, metadata) {
   const rows = Array.isArray(draft?.services) ? draft.services : [];
   const selected = rows.filter((r) => r && r.included === true);
   if (!selected.length) fail('Pick at least one service to hand over.');
-  if (selected.length > 64) fail('There are too many services in one transfer.');
+  if (selected.length > 64) fail('There are too many services in one transfer. Select up to 64 services, then send the rest in another transfer.');
 
   const seen = new Set();
   const edge = validateEdgeAccess(draft.edgeAccess);
@@ -272,7 +273,7 @@ export function buildBundle(detected, cfg, draft, installationId, metadata) {
       fail(`${rawLabel} has an invalid API key in its detected configuration.`);
     }
     // Do not transfer API-key hints for services that require interactive credentials.
-    const transferableApiKey = NEEDS_LOGIN.has(found.kind) ? '' : detectedApiKey;
+    const transferableApiKey = canTransferApiKey(found.kind) ? detectedApiKey : '';
     const baseUrl = canonicalizeServiceUrl(row.baseUrl, `${rawLabel} local address`);
     const remoteBaseUrl = canonicalizeOptionalServiceUrl(row.remoteBaseUrl, `${rawLabel} away address`);
     const { serviceId } = idsFor(installation, instanceId, found.kind);

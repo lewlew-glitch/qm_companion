@@ -206,8 +206,8 @@ test('scan copy omits keys excluded from the scan', () => {
 
   const reachable = block(html, '<div class="tr t-svc svc-row is-online', '</div>\n    </div>');
   const stopped = block(html, '<div class="tr t-svc svc-row is-not-running', '</div>\n    </div>');
-  assert.match(reachable, /Included in scan/);
-  assert.doesNotMatch(stopped, /Included in scan/, 'the hand-over leaves a stopped service behind');
+  assert.match(reachable, /Credential available/);
+  assert.doesNotMatch(stopped, /Credential available/, 'the hand-over leaves a stopped service behind');
   assert.match(stopped, /Key held back/);
   assert.match(stopped, /data-pairing="included"/);
 });

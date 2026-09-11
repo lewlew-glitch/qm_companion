@@ -31,6 +31,7 @@ import { mintKey, MINT_ENABLED_KINDS, isMintEnabled, mintTransportOk } from './m
 import { isSafeInspectableEnvValue, isSafeInspectableLabelValue } from './secretscan.js';
 import { isProtectedContainer } from './protect.js';
 import { pairingCredentialState } from './kinds.js';
+import { canSaveManualKey } from './keyladder.js';
 import { OneTimeTransfers, qmc1Payload } from './qmbackup.js';
 import { listContainers, containerLogs, containerActionResult, removeContainer, execInContainer, dockerAvailable, dockerCounts, dockerInfo, dockerStats, listImages, pullImage, removeImage, pruneImages, prune, pruneContainersGuarded, protectedContainerReason, listVolumes, listNetworks, createNetwork, removeNetwork, recentEvents, allContainerStats, listStacks, updateContainer, inspectContainer, systemDf, removeVolume } from './docker.js';
 import { createHub, HUB_TOPICS } from './hub.js';
@@ -38,6 +39,7 @@ import { renderDevicesReadOnly } from './mobile/owner-routes.js';
 import { prepareMobilePlane, secureOwnerConfiguration, startMobileListener } from './mobile/listener.js';
 import { checkUpdates, clearUpdateCache, UPDATE_CACHE_MS } from './registry.js';
 import { updatesState, decorateUpdates, checkRef, dismissRefs } from './updates.js';
+import { companionRelease } from './companion-release.js';
 import { deployStack, composeSkeleton } from './compose.js';
 import { lintCompose } from './lint.js';
 import { basename, dirname } from 'node:path';
@@ -578,6 +580,7 @@ async function handleApiServices(req, res) {
       dockerState: d.dockerState || null,
       availability: d.availability || 'unverified',
       hasKey: !!d.apiKey,
+      storedCredential: d.storedCredential === true,
       credentialState: pairingCredentialState(d.kind, d.apiKey, d.credentialConflict),
     })),
   });
@@ -691,7 +694,7 @@ async function handlePairKeysManual(req, res) {
 
   const found = (await currentServices()).find((service) => service.instanceId === instanceId);
   if (!found) return json(res, 404, { error: 'That service is no longer detected.' });
-  if (pairingCredentialState(found.kind, found.apiKey, found.credentialConflict) !== 'missing-key') {
+  if (!canSaveManualKey(found.kind, found.apiKey, found.credentialConflict)) {
     return json(res, 409, { error: 'That service no longer needs a manual key.' });
   }
   if (!setMintedKey(found.instanceId, { kind: found.kind, apiKey, createdBy: 'manual' })) {
@@ -1389,6 +1392,7 @@ async function route(req, res, panel = {}) {
   }
 
   if (path === '/api/stream' && method === 'GET') return handleStream(req, res, session, token, url);
+  if (path === '/api/companion-release' && method === 'GET') return json(res, 200, await companionRelease.check());
   if (path === '/api/jump' && method === 'GET') return handleJump(req, res);
   if (path === '/' && method === 'GET') return handleDashboard(req, res, session.csrf);
   if (path === '/pair' && method === 'GET') return handlePairGet(res, session.csrf);

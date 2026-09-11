@@ -1,7 +1,7 @@
 import { escapeHtml } from '../../http.js';
 import { config } from '../../config.js';
 import { labelFor, PORTS, pairingCredentialState } from '../../kinds.js';
-import { ladderFor } from '../../keyladder.js';
+import { canSaveManualKey, ladderFor } from '../../keyladder.js';
 import { I, badge, jsafe, credentialTag, ESC_FN } from '../bits.js';
 import { board, shell } from '../chrome.js';
 import { CONFIGURE_WORDING, deferredCredentialMarkup, ladderMarkup } from './pair-ladder.js';
@@ -127,8 +127,9 @@ function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [
     const picked = value.included && !blocked;
     const localRoute = value.baseUrl || `No local address set`;
     const awayRoute = value.remoteBaseUrl ? `Away: ${value.remoteBaseUrl}` : 'Home route only';
-    const toggleLabel = state === 'included' || state === 'not-required' ? 'Edit routes' : 'Set up service';
-    const rung = state === 'missing-key' ? ladderFor(d.kind) : null;
+    const toggleLabel = state === 'included' ? 'Edit routes' : 'Set up service';
+    const storedCredential = state === 'included' && d.storedCredential === true;
+    const rung = (storedCredential || canSaveManualKey(d.kind, d.apiKey, d.credentialConflict)) ? ladderFor(d.kind) : null;
     const deferred = deferredCredentialMarkup(d.kind, state);
     if (picked) selectedStates.push(state);
     if (group === 'unreachable' && !picked) unreachableLeftOut += 1;
@@ -141,7 +142,7 @@ function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [
         mint: rung.mint ? { usernameLabel: rung.mint.usernameLabel, passwordLabel: rung.mint.passwordLabel, note: rung.mint.note } : null,
       };
     }
-    const markup = `<section class="pair-service${group === 'reachable' ? '' : ` is-${group}`}" data-pair-row data-instance="${escapeHtml(d.instanceId)}" data-kind="${escapeHtml(d.kind)}" data-cred-state="${escapeHtml(state)}" data-avail="${escapeHtml(availability)}" data-docker-state="${escapeHtml(d.dockerState || '')}" data-url="${escapeHtml(d.url || '')}" data-order="${index}"${forcedDecision ? ' data-forced="1"' : ''}>
+    const markup = `<section class="pair-service${group === 'reachable' ? '' : ` is-${group}`}" data-pair-row data-instance="${escapeHtml(d.instanceId)}" data-kind="${escapeHtml(d.kind)}" data-cred-state="${escapeHtml(state)}" data-empty-cred-state="${escapeHtml(pairingCredentialState(d.kind))}"${storedCredential ? ' data-minted="1"' : ''} data-avail="${escapeHtml(availability)}" data-docker-state="${escapeHtml(d.dockerState || '')}" data-url="${escapeHtml(d.url || '')}" data-order="${index}"${forcedDecision ? ' data-forced="1"' : ''}>
       <input type="hidden" name="service_${index}" value="${escapeHtml(d.instanceId)}">
       <div class="pair-service-head">
         <label class="pair-pick"><input type="checkbox" name="include_${index}" ${picked ? 'checked' : ''} ${blocked ? 'disabled' : ''}>${badge(d.kind, title)}<span><b>${escapeHtml(title)}</b><small>${escapeHtml(d.kind)} · port ${escapeHtml(d.port || PORTS[d.kind] || 'unknown')}</small></span></label>
@@ -156,7 +157,7 @@ function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [
           <div class="field"><label for="base_${index}">Home / local address</label><input class="pair-base" id="base_${index}" name="base_${index}" type="url" value="${escapeHtml(value.baseUrl || '')}" placeholder="http://192.168.1.10:${escapeHtml(d.port || PORTS[d.kind] || '')}" autocomplete="off" spellcheck="false"></div>
           <div class="field"><label for="remote_${index}">Away address <span>optional, Tailscale or Cloudflare</span></label><input class="pair-remote" id="remote_${index}" name="remote_${index}" type="url" value="${escapeHtml(value.remoteBaseUrl || '')}" placeholder="https://nas.tailnet.ts.net:${escapeHtml(d.port || PORTS[d.kind] || '')} or https://${escapeHtml(d.kind)}.example.com" autocomplete="off" spellcheck="false"></div>
         </div>
-        ${rung ? ladderMarkup(d.kind, rung, canShell, mintEnabledKinds, d.name) : deferred}
+        ${rung ? ladderMarkup(d.kind, rung, canShell, mintEnabledKinds, d.name, storedCredential) : deferred}
       </div>
     </section>`;
     groups[group].push(markup);
@@ -215,7 +216,7 @@ function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [
         function refreshRung(row) {
           var ladder = row.querySelector('[data-ladder]'), made = row.querySelector('[data-made]');
           var next = row.querySelector('[data-next-step]'), state = row.dataset.credState;
-          var missing = row.dataset.credState === 'missing-key';
+          var missing = state === 'missing-key' || ((state === 'not-required' || state === 'sign-in') && !!LADDERS[row.dataset.instance]);
           if (ladder) ladder.hidden = !missing;
           if (made) made.classList.toggle('on', !missing && row.dataset.minted === '1');
           if (next) next.hidden = state !== 'sign-in' && state !== 'key-and-secret';
@@ -249,6 +250,7 @@ function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [
 
         Array.prototype.forEach.call(document.querySelectorAll('[data-pair-row]'), function (row) {
           var id = row.dataset.instance, lad = LADDERS[id];
+          refreshRung(row);
           var toggle = row.querySelector('[data-pair-toggle]'), body = row.querySelector('[data-pair-body]');
           function setOpen(open) {
             if (!toggle || !body) return;
@@ -304,8 +306,20 @@ function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [
           });
           var forget = row.querySelector('[data-forget]');
           if (forget) forget.addEventListener('click', function () {
-            fetch('/pair/keys/forget', { method: 'POST', headers: HEAD, body: JSON.stringify({ instanceId: id }) }).then(function (r) {
-              if (r.ok) { row.dataset.minted = ''; setChip(row, 'missing-key'); recount(); }
+            qmConfirm({
+              title: 'Remove saved credential',
+              what: 'This removes only the saved copy in Companion. It does not revoke the service key, and credentials already imported on your phone stay unchanged. You will need the credential again to include it in another transfer.',
+              confirmLabel: 'Remove from Companion',
+            }).then(function (go) {
+              if (!go) return;
+              forget.disabled = true;
+              return fetch('/pair/keys/forget', { method: 'POST', headers: HEAD, body: JSON.stringify({ instanceId: id }) }).then(function (r) {
+                if (!r.ok) throw new Error('Remove failed');
+                row.dataset.minted = ''; setChip(row, row.dataset.emptyCredState || 'missing-key'); recount();
+              }).finally(function () { forget.disabled = false; });
+            }).catch(function () {
+              var toast = qmToast('Could not remove saved credential');
+              toast.ops.set('remove', { label: 'Remove from Companion', state: 'fail', note: 'Try again.' });
             });
           });
           var readBtn = row.querySelector('[data-read]');
@@ -372,7 +386,9 @@ function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [
               d.services.forEach(function (s) {
                 var row = byId[s.instanceId];
                 if (!row) return;
+                row.dataset.minted = s.storedCredential === true ? '1' : '';
                 if (s.credentialState) setChip(row, s.credentialState);
+                refreshRung(row);
                 if (s.availability) setAvailability(row, s.availability, s.dockerState || '', s.url);
               });
               recount();

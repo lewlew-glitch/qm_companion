@@ -1,17 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { installedVersion, RELEASES_URL, UPDATE_GUIDE_URL } from '../../companion-release.js';
 
 import { escapeHtml } from '../../http.js';
 import { dockerAccessState, dockerModeRank } from '../../docker-access.js';
 import { tag } from '../bits.js';
 import { board, shell } from '../chrome.js';
 
-// Read the displayed version from package.json.
-let VERSION = '';
-try {
-  VERSION = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')).version || '';
-} catch {
-  /* The about card handles a missing manifest. */
-}
+const VERSION = installedVersion();
 
 export function settingsPage(cfg, dockerOk, csrf, prefs, tab, dockerAccess = dockerAccessState()) {
   tab = ['general', 'docker', 'access', 'about'].includes(tab) ? tab : 'general';
@@ -101,7 +95,10 @@ export function settingsPage(cfg, dockerOk, csrf, prefs, tab, dockerAccess = doc
       ${kv('Setup', 'closed', 'The first-run page is disabled after an owner exists.')}`)}
       ${card('About', `
       ${kvm('Quartermaster Companion', VERSION ? `v${VERSION}` : 'Not available')}
-      ${kv('Talks to', 'your services + image registries', 'No telemetry or hosted account. Update checks contact public registry and token endpoints.')}`)}
+      ${kv('Talks to', 'your services, registries and GitHub', 'No telemetry or hosted account. Companion checks GitHub for new releases; image checks contact public registries.')}
+      <p id="companion-release-status" role="status">Checking for a Companion release…</p>
+      <p>Update through your existing Docker or Compose installation, keeping its configuration and data.</p>
+      <div class="release-links"><a href="${RELEASES_URL}" target="_blank" rel="noopener noreferrer">View releases</a><a href="${UPDATE_GUIDE_URL}" target="_blank" rel="noopener noreferrer">How to update</a></div>`)}
     </div>`;
 
   const body = { general, docker, access, about }[tab];

@@ -18,6 +18,10 @@ qm-companion.v1-migration-used
 .qm-companion.*.tmp
 *.qmbackup
 *.qmbackup.tmp
+*.qmcompanion
+*.qmcompanion.tmp
+**/*.qmcompanion
+**/*.qmcompanion.tmp
 *.md
 !THIRD_PARTY_NOTICES.md
 docker-compose*.yml

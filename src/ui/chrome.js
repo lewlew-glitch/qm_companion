@@ -10,6 +10,7 @@ import { getPrefs } from '../store.js';
 import { fmtBytes, I, jsafe, ESC_FN, FOCUS_FN, FAVICON, MARK, metaOf } from './bits.js';
 import { themeBoot, appRuntime } from './runtime.js';
 import { proxyRecoveryLines } from './docker-recovery.js';
+import { companionUpdateNotice, companionUpdateRuntime } from './companion-release.js';
 
 export function doc(title, csrf, body) {
   return `<!doctype html><html lang="en"><head>
@@ -146,6 +147,7 @@ export function shell(active, csrf, meta, body) {
       ${nav('/devices', 'wifi', 'Devices', 'devices')}
       ${nav('/settings', 'gear', 'Settings', 'settings')}
       <div class="spacer"></div>
+      ${companionUpdateNotice()}
       <div class="foot">
         <a class="iconbtn" href="/profile" title="Profile" aria-label="Profile">${I.user}</a>
         <button class="signout" id="logout">${I.out}Sign out</button>
@@ -158,6 +160,7 @@ export function shell(active, csrf, meta, body) {
     <div class="scroll">${body}</div>
   </div>
 </div>
+${companionUpdateRuntime()}
 <div class="overlay" id="docker-mode-dialog" hidden>
   <form class="modal sm mode-modal" id="docker-mode-form" role="dialog" aria-modal="true" aria-labelledby="docker-mode-title" aria-describedby="docker-mode-intro">
     <div class="modal-h"><b id="docker-mode-title">Docker access</b><button class="iconbtn" id="docker-mode-x" type="button" aria-label="Close">${I.x}</button></div>

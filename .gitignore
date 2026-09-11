@@ -18,4 +18,6 @@ qm-companion.v1-migration-used
 .qm-companion.*.tmp
 *.qmbackup
 *.qmbackup.tmp
+*.qmcompanion
+*.qmcompanion.tmp
 docker-compose.nas.yml

@@ -19,7 +19,7 @@ test('missing-key kinds map to one ladder class', () => {
 });
 
 test('unsupported kinds have no credential ladder entry', () => {
-  for (const kind of ['plex', 'komodo', 'qbittorrent', 'dozzle', 'transmission', 'synology']) {
+  for (const kind of ['komodo', 'qbittorrent', 'dozzle', 'transmission', 'synology']) {
     assert.equal(ladderFor(kind), null, kind);
   }
 });
