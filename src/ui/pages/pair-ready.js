@@ -105,13 +105,33 @@ export function pairReadyPage({ bundle, qrDataUrl, filePath, csrf }) {
             expired: 'Your Companion session expired. Sign in again, then check for the key. The displayed code remains valid until it expires.',
             unreachable: 'Companion did not answer the last two checks.',
           });
-          var poll = function () {
-            fetch('/api/services', { headers: { accept: 'application/json' } })
-              .then(function (r) { if (!r.ok) { live.fail(r.status); return null; } return r.json().catch(function () { return {}; }); })
-              .then(function (d) {
-                if (d === null) return;
-                if (!d || !Array.isArray(d.services)) { live.fail(0); return; }
-                live.ok();
+        var pollActive = true, pollRun = null, timer = null;
+        function poll() {
+          if (!pollActive || document.hidden || pollRun) return;
+          var run = { controller: new AbortController(), deadline: null }, skipped = {};
+          pollRun = run;
+          function current() { return pollActive && pollRun === run; }
+          function finish() {
+            clearTimeout(run.deadline);
+            if (pollRun === run) pollRun = null;
+          }
+          run.deadline = setTimeout(function () {
+            if (!current()) return;
+            finish();
+            run.controller.abort();
+            live.fail(0);
+          }, 90000);
+          Promise.resolve().then(function () {
+            if (!current()) return skipped;
+            return fetch('/api/services', { headers: { accept: 'application/json' }, signal: run.controller.signal });
+          }).then(function (r) {
+            if (!current() || r === skipped) return skipped;
+            if (!r.ok) { live.fail(r.status); return skipped; }
+            return r.json();
+          }).then(function (d) {
+            if (!current() || d === skipped) return;
+            if (!d || !Array.isArray(d.services)) { live.fail(0); return; }
+            live.ok();
                 var map = {};
                 d.services.forEach(function (s) { map[s.instanceId] = s; });
                 var available = AWAIT.filter(function (a) { return map[a.instanceId] && map[a.instanceId].hasKey; });
@@ -119,12 +139,27 @@ export function pairReadyPage({ bundle, qrDataUrl, filePath, csrf }) {
                   msg.textContent = available[0].label + "'s key is now available. Re-issue to include it.";
                   form.hidden = false;
                 }
-              }).catch(function () { live.fail(0); });
-          };
-          live.onRetry(poll);
-          var timer = setInterval(function () { if (!document.hidden) poll(); }, 10000);
-          document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
-          poll();
+          }).catch(function () { if (current()) live.fail(0); }).finally(finish);
+        }
+        function armPolling() {
+          if (timer === null) timer = setInterval(poll, 10000);
+        }
+        function pausePolling() {
+          pollActive = false;
+          clearInterval(timer); timer = null;
+          var run = pollRun; pollRun = null;
+          if (run) { clearTimeout(run.deadline); run.controller.abort(); }
+        }
+        live.onRetry(poll);
+        document.addEventListener('visibilitychange', poll);
+        window.addEventListener('focus', poll);
+        window.addEventListener('pagehide', pausePolling);
+        window.addEventListener('pageshow', function () {
+          if (pollActive) return;
+          pollActive = true; armPolling(); poll();
+        });
+        armPolling();
+        poll();
         }
       })();
     </script>`);

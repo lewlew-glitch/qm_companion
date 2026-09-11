@@ -106,7 +106,7 @@ export async function pairFixture(t, { failQrAt = 0, holdQrAt = 0, extraService 
   assert.equal(claim.status, 303);
   const cookie = /qm_sess=([^;]+)/.exec(claim.headers.getSetCookie().join(';'))?.[0]; assert.ok(cookie);
   const headers = { cookie, 'content-type': 'application/x-www-form-urlencoded', 'sec-fetch-site': 'same-origin' };
-  const page = await (await fetch(origin + '/pair', { headers: { cookie } })).text();
+  const page = await (await fetch(origin + '/pair?full=1', { headers: { cookie } })).text();
   const initial = fields(page);
   const rows = [...page.matchAll(/data-instance="([^"]+)" data-kind="([^"]+)"[^>]*data-order="(\d+)"/g)]
     .map(([, id, kind, index]) => ({ id, kind, index }));
@@ -159,7 +159,7 @@ export async function pairFixture(t, { failQrAt = 0, holdQrAt = 0, extraService 
       assert.equal(login.status, 303);
       const otherCookie = /qm_sess=([^;]+)/.exec(login.headers.getSetCookie().join(';'))?.[0];
       assert.ok(otherCookie);
-      const otherPage = await (await fetch(origin + '/pair', { headers: { cookie: otherCookie } })).text();
+      const otherPage = await (await fetch(origin + '/pair?full=1', { headers: { cookie: otherCookie } })).text();
       const response = await fetch(origin + '/pair/reissue', { method: 'POST', redirect: 'manual',
         headers: { ...headers, cookie: otherCookie },
         body: new URLSearchParams({ csrf: fields(otherPage).get('csrf'), bundleId: ready.bundleId }) });

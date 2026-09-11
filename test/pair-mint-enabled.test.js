@@ -124,7 +124,7 @@ test('enabled mint kinds use the detected origin', async (t) => {
   assert.equal(claim.status, 303, stderr);
   const cookie = responseCookie(claim, 'qm_sess');
 
-  const pair = await fetch(`${origin}/pair`, { headers: { cookie, accept: 'text/html' } });
+  const pair = await fetch(`${origin}/pair?full=1`, { headers: { cookie, accept: 'text/html' } });
   const html = await pair.text();
   const csrf = (html.match(/name="csrf" content="([a-f0-9]+)"/) || [])[1];
   const instanceId = (html.match(/data-instance="([^"]+)" data-kind="jellyfin"/) || [])[1];
@@ -197,7 +197,7 @@ test('paused mint kinds reject before network access', async (t) => {
     redirect: 'manual',
   });
   const cookie = responseCookie(claim, 'qm_sess');
-  const pair = await fetch(`${origin}/pair`, { headers: { cookie, accept: 'text/html' } });
+  const pair = await fetch(`${origin}/pair?full=1`, { headers: { cookie, accept: 'text/html' } });
   const html = await pair.text();
   const csrf = (html.match(/name="csrf" content="([a-f0-9]+)"/) || [])[1];
   const instanceId = (html.match(/data-instance="([^"]+)" data-kind="technitium"/) || [])[1];

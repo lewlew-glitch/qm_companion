@@ -284,7 +284,7 @@ test('native HTTPS remains authoritative when trust proxy is enabled', async (t)
 
   relaxTls();
   try {
-    const pair = await fetch(`${advertised}/pair`, { headers: { cookie: secure.cookie, accept: 'text/html' } });
+    const pair = await fetch(`${advertised}/pair?full=1`, { headers: { cookie: secure.cookie, accept: 'text/html' } });
     assert.equal(pair.status, 200);
     const pairHtml = await pair.text();
     const instanceId = (pairHtml.match(/name="service_0" value="([^"]+)"/u) || [])[1];

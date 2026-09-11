@@ -103,7 +103,7 @@ function publishedChoiceMarkup(d) {
   return `<p class="cc-hint pair-port-choice" data-port-choice>Docker publishes this on ports ${escapeHtml(list)}, and all of them reach the same service. Companion has filled in ${escapeHtml(d.publishedPort)}: change the address below if your phone should use one of the others.</p>`;
 }
 
-function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [], canShell = false }) {
+function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [], canShell = false, fragment = false }) {
   const values = new Map((draft.services || []).map((row) => [row.instanceId, row]));
   // Credential methods by service instance.
   const ladders = {};
@@ -167,7 +167,7 @@ function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [
   const initialLine = pairReadinessLine(initialReadiness, { unreachable: unreachableLeftOut, stopped: groups.stopped.length });
   const edge = draft.edgeAccess || {};
   const meta = { host: config.qmHost || 'localhost', count: detected.length, online: null };
-  return shell('pair', csrf || null, meta, `
+  const content = `
     ${board('pair', 'Set up the app', '', meta)}
     <p class="sub">Review the addresses used by the phone. Detected API keys are included in the encrypted transfer. After setup, Quartermaster connects to each service directly.</p>
     ${pairIssues(issues)}
@@ -376,13 +376,33 @@ function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [
           expired: 'Your Companion session expired. Sign in again, then check for updates. Your entered addresses remain on this page.',
           unreachable: 'Companion did not answer the last two checks. The displayed status may be out of date.',
         });
+        var pollActive = true, pollRun = null, timer = null;
         function poll() {
-          fetch('/api/services', { headers: { accept: 'application/json' } })
-            .then(function (r) { if (!r.ok) { live.fail(r.status); return null; } return r.json().catch(function () { return {}; }); })
-            .then(function (d) {
-              if (d === null) return;
-              if (!d || !Array.isArray(d.services)) { live.fail(0); return; }
-              live.ok();
+          if (!pollActive || document.hidden || pollRun) return;
+          var run = { controller: new AbortController(), deadline: null }, skipped = {};
+          pollRun = run;
+          function current() { return pollActive && pollRun === run; }
+          function finish() {
+            clearTimeout(run.deadline);
+            if (pollRun === run) pollRun = null;
+          }
+          run.deadline = setTimeout(function () {
+            if (!current()) return;
+            finish();
+            run.controller.abort();
+            live.fail(0);
+          }, 90000);
+          Promise.resolve().then(function () {
+            if (!current()) return skipped;
+            return fetch('/api/services', { headers: { accept: 'application/json' }, signal: run.controller.signal });
+          }).then(function (r) {
+            if (!current() || r === skipped) return skipped;
+            if (!r.ok) { live.fail(r.status); return skipped; }
+            return r.json();
+          }).then(function (d) {
+            if (!current() || d === skipped) return;
+            if (!d || !Array.isArray(d.services)) { live.fail(0); return; }
+            live.ok();
               d.services.forEach(function (s) {
                 var row = byId[s.instanceId];
                 if (!row) return;
@@ -392,22 +412,38 @@ function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [
                 if (s.availability) setAvailability(row, s.availability, s.dockerState || '', s.url);
               });
               recount();
-            }).catch(function () { live.fail(0); });
+          }).catch(function () { if (current()) live.fail(0); }).finally(finish);
+        }
+        function armPolling() {
+          if (timer === null) timer = setInterval(poll, 5000);
+        }
+        function pausePolling() {
+          pollActive = false;
+          clearInterval(timer); timer = null;
+          var run = pollRun; pollRun = null;
+          if (run) { clearTimeout(run.deadline); run.controller.abort(); }
         }
         live.onRetry(poll);
-        var timer = setInterval(function () { if (!document.hidden) poll(); }, 5000);
-        document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
+        document.addEventListener('visibilitychange', poll);
         window.addEventListener('focus', poll);
+        window.addEventListener('pagehide', pausePolling);
+        window.addEventListener('pageshow', function () {
+          if (pollActive) return;
+          pollActive = true; armPolling(); poll();
+        });
+        armPolling();
       })();
-    </script>`);
+    </script>`;
+  return fragment ? content : shell('pair', csrf || null, meta, content);
 }
 
 export function pairPage(model) {
   if (model.stage === 'ready') return pairReadyPage(model);
   if (model.stage === 'configure') return pairConfigurePage(model);
-  return shell('pair', model.csrf || null, null, `
+  const content = `
     ${board('pair', 'Set up the app', '', null)}
     <p class="sub">Companion creates a short-lived encrypted handoff; the phone then connects to your services directly.</p>
     ${pairIssues(model.issues)}
-    <div class="empty">No services are ready to hand over yet.</div>`);
+    <div class="empty">No services are ready to hand over yet.</div>`;
+  return model.fragment ? content : shell('pair', model.csrf || null, null, content);
 }

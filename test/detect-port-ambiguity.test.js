@@ -138,7 +138,7 @@ test('multiple host ports choose the same usable route regardless of order', asy
   assert.equal(claim.status, 303, stderr);
   const sessionCookie = responseCookie(claim, 'qm_sess');
 
-  const page = await fetch(`${origin}/pair`, { headers: { cookie: sessionCookie, accept: 'text/html' } });
+  const page = await fetch(`${origin}/pair?full=1`, { headers: { cookie: sessionCookie, accept: 'text/html' } });
   assert.equal(page.status, 200, stderr);
   const html = await page.text();
 

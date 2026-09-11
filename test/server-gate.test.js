@@ -171,7 +171,7 @@ test('HTTP gates and pairing handoff fail closed end to end', async (t) => {
   const wrongVerbRedeem = await fetch(`${origin}/pair/redeem/${'a'.repeat(43)}`, { method: 'POST', redirect: 'manual' });
   assert.equal(wrongVerbRedeem.status, 401, 'only the exact GET redemption route is public');
 
-  const pairConfig = await fetch(`${origin}/pair`, { headers: { cookie: sessionCookie, accept: 'text/html' } });
+  const pairConfig = await fetch(`${origin}/pair?full=1`, { headers: { cookie: sessionCookie, accept: 'text/html' } });
   assert.equal(pairConfig.status, 200, stderr);
   const configHtml = await pairConfig.text();
   const csrf = (configHtml.match(/name="csrf" content="([a-f0-9]+)"/) || [])[1];

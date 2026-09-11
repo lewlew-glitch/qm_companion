@@ -8,6 +8,7 @@ import { grid } from './styles/grid.js';
 import { controls, consoles, feedback } from './styles/components.js';
 import { detail, dashboard, stacks, settings, auth, pairing } from './styles/pages.js';
 import { pairOffline } from './styles/pair-offline.js';
+import { pairLoading } from './styles/pair-loading.js';
 
 export const styles = fonts + tokens + base + chrome + controls + tables + grid + detail + dashboard
-  + stacks + consoles + settings + auth + pairing + pairOffline + feedback + responsive;
+  + stacks + consoles + settings + auth + pairing + pairOffline + pairLoading + feedback + responsive;

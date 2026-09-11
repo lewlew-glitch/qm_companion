@@ -218,7 +218,7 @@ test('renders specific credential guidance for pairing', () => {
   assert.match(html, /data-manual-key type="password" maxlength="16384"/);
   assert.match(html, /fetch\('\/pair\/keys\/manual'/);
   assert.match(html, /setChip\(row, 'included'\)/);
-  assert.match(html, /setInterval\(function \(\) \{ if \(!document.hidden\) poll\(\); \}, 5000\)/);
+  assert.match(html, /if \(!pollActive \|\| document.hidden \|\| pollRun\) return;[\s\S]*setInterval\(poll, 5000\)/);
   assert.match(html, /data-pair-body hidden/);
   assert.match(html, /id="pair-expand"[^>]*>Review all routes/);
   assert.match(html, /data-route-summary/);

@@ -144,7 +144,7 @@ for (const fixture of [
   const sessionCookie = responseCookie(claim, 'qm_sess');
   assert.match(sessionCookie, /^qm_sess=/);
 
-  const pair = await fetch(`${origin}/pair`, { headers: { cookie: sessionCookie, accept: 'text/html' } });
+  const pair = await fetch(`${origin}/pair?full=1`, { headers: { cookie: sessionCookie, accept: 'text/html' } });
   assert.equal(pair.status, 200, stderr);
   const pairHtml = await pair.text();
   const csrf = (pairHtml.match(/name="csrf" content="([a-f0-9]+)"/) || [])[1];
@@ -215,7 +215,7 @@ for (const fixture of [
   assert.equal(overwrite.status, 409);
   await parseError(overwrite, 'BADSECRETFRAGMENT');
 
-  const refreshedPair = await fetch(`${origin}/pair`, { headers: { cookie: sessionCookie, accept: 'text/html' } });
+  const refreshedPair = await fetch(`${origin}/pair?full=1`, { headers: { cookie: sessionCookie, accept: 'text/html' } });
   const refreshedHtml = await refreshedPair.text();
   assert.equal(refreshedPair.status, 200);
   assert.doesNotMatch(refreshedHtml, /TOPSECRETFRAGMENT/);
@@ -228,7 +228,7 @@ for (const fixture of [
     body: JSON.stringify({ instanceId }),
   });
   assert.equal(removed.status, 200);
-  const afterRemoval = await (await fetch(`${origin}/pair`, { headers: { cookie: sessionCookie } })).text();
+  const afterRemoval = await (await fetch(`${origin}/pair?full=1`, { headers: { cookie: sessionCookie } })).text();
   assert.match(afterRemoval, /class="pair-ladder" data-ladder>/, 'replacement is available after reload');
   assert.doesNotMatch(afterRemoval, /data-minted="1"|class="key-made on"/);
   const replacementKey = 'qm-TOPSECRETFRAGMENT-replacement';

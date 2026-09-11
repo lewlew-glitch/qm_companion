@@ -146,7 +146,7 @@ test('renders poll stalls, authorization failures, and last success', () => {
     assert.match(html, /data-live-banner/, `${name} renders the live strip`);
     assert.match(html, /data-live-stamp>[^<]*Checked when this page loaded\./, `${name} stamps the load`);
     assert.match(html, /live\.fail\(r\.status\)/, `${name} passes the status through instead of swallowing it`);
-    assert.match(html, /\.catch\(function \(\) \{ live\.fail\(0\); \}\)/, `${name} counts a network failure`);
+    assert.match(html, /\.catch\(function \(\) \{ if \(current\(\)\) live\.fail\(0\); \}\)/, `${name} counts a network failure`);
     assert.match(html, /live\.onRetry\(poll\)/, `${name} wires a real control`);
     assert.match(html, /Your Companion session expired/, `${name} names an expired session`);
     assert.match(html, /did not answer the last two checks/, `${name} names an outage differently`);

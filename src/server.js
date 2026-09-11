@@ -40,6 +40,7 @@ import { prepareMobilePlane, secureOwnerConfiguration, startMobileListener } fro
 import { checkUpdates, clearUpdateCache, UPDATE_CACHE_MS } from './registry.js';
 import { updatesState, decorateUpdates, checkRef, dismissRefs } from './updates.js';
 import { companionRelease } from './companion-release.js';
+import { pairLoadingPage } from './ui/pages/pair-loading.js';
 import { deployStack, composeSkeleton } from './compose.js';
 import { lintCompose } from './lint.js';
 import { basename, dirname } from 'node:path';
@@ -477,16 +478,16 @@ function renderPairForm(res, status, detected, draft, csrf, issues = []) {
   }));
 }
 
-async function handlePairGet(res, csrf) {
+async function handlePairGet(res, csrf, fragment = false) {
   const detected = await currentServices();
-  if (detected.length === 0) {
-    return pairHtml(res, 200, pairPage({
-      stage: 'empty',
-      csrf,
-      issues: ['No services found yet. Check the stack mount and Docker connection, then try again.'],
-    }));
-  }
-  return renderPairForm(res, 200, detected, defaultPairDraft(detected, config), csrf);
+  const content = pairPage(detected.length === 0 ? {
+    stage: 'empty', csrf, fragment,
+    issues: ['No services found yet. Check the stack mount and Docker connection, then try again.'],
+  } : {
+    stage: 'configure', csrf, fragment, detected, draft: defaultPairDraft(detected, config), issues: [],
+    mintEnabledKinds: [...MINT_ENABLED_KINDS], canShell: canUseDockerShell(),
+  });
+  return pairHtml(res, 200, fragment ? `<div data-pair-loaded>${content}</div>` : content);
 }
 
 async function handlePairPost(req, res, token, csrf, auth) {
@@ -1395,7 +1396,10 @@ async function route(req, res, panel = {}) {
   if (path === '/api/companion-release' && method === 'GET') return json(res, 200, await companionRelease.check());
   if (path === '/api/jump' && method === 'GET') return handleJump(req, res);
   if (path === '/' && method === 'GET') return handleDashboard(req, res, session.csrf);
-  if (path === '/pair' && method === 'GET') return handlePairGet(res, session.csrf);
+  if (path === '/pair' && method === 'GET') return url.searchParams.get('full') === '1'
+    ? handlePairGet(res, session.csrf)
+    : pairHtml(res, 200, pairLoadingPage(session.csrf));
+  if (path === '/pair/form' && method === 'GET') return handlePairGet(res, session.csrf, true);
   if (path === '/pair' && method === 'POST') return handlePairPost(req, res, token, session.csrf, auth);
   if (path === '/pair/keys/read' && method === 'POST') return handlePairKeysRead(req, res);
   if (path === '/pair/keys/mint' && method === 'POST') return handlePairKeysMint(req, res, token);

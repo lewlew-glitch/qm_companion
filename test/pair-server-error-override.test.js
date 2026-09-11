@@ -151,7 +151,7 @@ test('preserves Include anyway after a server-side form error', async (t) => {
   assert.equal(claim.status, 303, stderr);
   const sessionCookie = responseCookie(claim, 'qm_sess');
 
-  const first = await fetch(`${origin}/pair`, { headers: { cookie: sessionCookie, accept: 'text/html' } });
+  const first = await fetch(`${origin}/pair?full=1`, { headers: { cookie: sessionCookie, accept: 'text/html' } });
   assert.equal(first.status, 200, stderr);
   const firstHtml = await first.text();
   const csrf = (firstHtml.match(/name="csrf" content="([a-f0-9]+)"/) || [])[1];
@@ -267,7 +267,7 @@ test('preserves Include anyway across probe-state changes', async (t) => {
   assert.equal(claim.status, 303, stderr);
   const sessionCookie = responseCookie(claim, 'qm_sess');
 
-  const first = await fetch(`${origin}/pair`, { headers: { cookie: sessionCookie, accept: 'text/html' } });
+  const first = await fetch(`${origin}/pair?full=1`, { headers: { cookie: sessionCookie, accept: 'text/html' } });
   assert.equal(first.status, 200, stderr);
   const firstHtml = await first.text();
   const csrf = (firstHtml.match(/name="csrf" content="([a-f0-9]+)"/) || [])[1];
