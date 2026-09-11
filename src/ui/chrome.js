@@ -9,6 +9,7 @@ import { knownUpdateCount } from '../updates.js';
 import { getPrefs } from '../store.js';
 import { fmtBytes, I, jsafe, ESC_FN, FOCUS_FN, FAVICON, MARK, metaOf } from './bits.js';
 import { themeBoot, appRuntime } from './runtime.js';
+import { proxyRecoveryLines } from './docker-recovery.js';
 
 export function doc(title, csrf, body) {
   return `<!doctype html><html lang="en"><head>
@@ -387,11 +388,8 @@ export function proxyBlocked(active, icon, title, flag, csrf) {
   const set = `Set ${code(`${flag}: 1`)}`;
   const lines = transport.kind === 'proxy'
     ? [
-      'The socket proxy is blocking this.',
-      transport.service
-        ? `${set} in the environment of the ${code(transport.service)} service in your compose file, then ${code(`docker compose -f docker-compose.example.yml up -d --build ${transport.service}`)}.`
-        : `${set} on the Docker proxy answering at ${code(transport.host)}, then recreate that container.`,
-      transport.service ? SAME_F_LIST : '',
+      `The Docker proxy at ${code(transport.host)} refused this read request.`,
+      ...proxyRecoveryLines(flag),
     ]
     : transport.kind === 'socket'
       ? [
@@ -410,9 +408,9 @@ export function noSocket(active, icon, title, csrf) {
   const transport = dockerTransport();
   const lines = transport.kind === 'proxy'
     ? [
-      `Nothing is answering at ${code(transport.host)}.`,
-      `${code('DOCKER_HOST')} points there, so check that the configured socket proxy is running and reachable from Companion.`,
-      'Restart the socket proxy from Unraid or its Compose project.',
+      `Companion could not read Docker at ${code(transport.host)}.`,
+      `Check that the configured socket proxy is running and reachable from Companion.`,
+      ...proxyRecoveryLines(),
     ]
     : transport.kind === 'socket'
       ? [

@@ -27,7 +27,7 @@ process.stdout.write(JSON.stringify({
 }));`;
   const home = mkdtempSync(join(tmpdir(), 'qm-chrome-copy-child-'));
   try {
-    const env = { ...process.env, DATA_DIR: home };
+    const env = { ...process.env, DATA_DIR: home, QM_PROXY_KEY: 'k'.repeat(48) };
     if (dockerHost === null) delete env.DOCKER_HOST;
     else env.DOCKER_HOST = dockerHost;
     return JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', script], { encoding: 'utf8', env }));
@@ -87,12 +87,13 @@ test('TCP DOCKER_HOST omits local socket-mount instructions', () => {
   assert.match(gone, /tcp:\/\/socket-proxy:2375/, 'it names the address that is silent');
   assert.match(gone, /configured socket proxy/);
   assert.match(gone, /running and reachable from Companion/);
-  assert.match(gone, /Unraid or its Compose project/);
+  assert.match(gone, /On Unraid, edit the affected container settings and Apply/);
   assert.doesNotMatch(gone, /docker compose|up -d/);
 
   assert.match(blocked, /CONTAINERS: 1/);
-  assert.match(blocked, /socket-proxy<\/code> service/);
-  assert.match(blocked, /docker compose -f docker-compose\.example\.yml up -d --build socket-proxy/);
+  assert.match(blocked, /QM_PROXY_KEY/);
+  assert.match(blocked, /If the keys match/);
+  assert.doesNotMatch(blocked, /docker compose|up -d|socket-proxy<\/code> service/);
 });
 
 test('a socket path names the volume line that is missing', () => {

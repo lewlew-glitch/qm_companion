@@ -65,3 +65,19 @@ After raising the installed maximum, Companion still starts with Read only selec
 ## Reverse proxies
 
 The default Web UI uses plain HTTP and should stay on a trusted private network. When a trusted reverse proxy provides HTTPS, set Trusted reverse proxy to `true` in the `qm-companion` template. Keep it `false` for direct HTTP access.
+
+## Docker proxy refuses requests
+
+If the proxy log shows `403` for several read endpoints such as `/info`, `/containers/json` and `/images/json`, the requests reached the proxy but were refused. Enabling the persistent mobile connection does not repair Docker discovery.
+
+1. Check **Proxy key** in both container settings. Both must contain the same private value, at least 32 characters long, without surrounding whitespace. Never post either key or a complete container environment dump.
+2. If the keys match, check that the proxy's Containers, Images, Volumes, Networks, Events, Host information, Disk usage and Ping APIs are set to `1`.
+3. Apply changes to the affected containers from Unraid. Keep Docker writes and Container shell at `0` for a read-only installation. Do not expose port 2375 or replace the authenticated proxy with an unrestricted socket mount.
+
+A `403` alone does not establish whether the key or a read permission was rejected. Changing Docker networks will not fix an authentication mismatch.
+
+## Tailscale subnet routes and the mobile origin
+
+A phone using a Tailscale subnet route can connect to the server's LAN origin, for example `https://192.168.4.100:8788`. A `100.x` address or MagicDNS name is not required. Choose the stable, reachable origin before first enabling the persistent mobile connection, and publish port 8788 as described above.
+
+If Companion already generated a certificate for another host, changing **Mobile HTTPS origin** does not replace it. The secure listener will refuse to start until the certificate change is approved. Read [TLS and certificates](tls-and-certificates.md#rotate-generated-material-or-approve-an-origin-change) before running the recovery command: confirmed rotation replaces the generated certificate and revokes every paired device, so each phone must pair again. It does not repair a separate Docker proxy refusal.
