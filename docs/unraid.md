@@ -4,7 +4,17 @@ Community Apps installs Quartermaster Companion as two containers. The dedicated
 
 ## Install
 
-Open the Unraid terminal and generate two different keys:
+For existing containers, follow [Existing installations](#existing-installations) below and keep the current keys and appdata.
+
+Create a dedicated user-defined bridge network once from the Unraid terminal:
+
+```sh
+docker network create qm-companion
+```
+
+If that name already exists, check that it is a bridge network intended for these two containers. The templates select `qm-companion`; choose **Custom: qm-companion** in each container's Network Type field if Unraid has not selected it automatically. Both containers must join the same network. Do not select the default `bridge`, `host`, or a direct LAN network such as `br0`.
+
+For a new installation, generate two different keys:
 
 ```sh
 printf 'SECRET_KEY='; openssl rand -hex 32
@@ -15,11 +25,13 @@ Keep both values private. `SECRET_KEY` protects the saved Companion state and mu
 
 Use the supplied `qm-socket-proxy`; other socket proxies do not enforce Companion's key and endpoint rules. If another application already uses one, leave it in place and install `qm-socket-proxy` separately for Companion.
 
-1. Install `qm-socket-proxy` from Apps. Keep that container name, enter the generated `QM_PROXY_KEY`, and leave Docker writes and Container shell set to `0`.
-2. Install `qm-companion`. Enter the same `QM_PROXY_KEY`, the separate `SECRET_KEY`, and the LAN or Tailscale address of the Unraid server in Server address.
+1. Install `qm-socket-proxy` from Apps on the `qm-companion` network. Keep that container name, enter the generated `QM_PROXY_KEY`, and leave Docker writes and Container shell set to `0`.
+2. Install `qm-companion` on the same network. Enter the same `QM_PROXY_KEY`, the separate `SECRET_KEY`, and the LAN or Tailscale address of the Unraid server in Server address.
 3. Open the Companion Web UI and create the owner account. If the first-run token is requested, open the `qm-companion` container log in Unraid.
 
-Keep both container names and leave Companion's Docker host set to `tcp://socket-proxy:2375`. Do not add a host port to `qm-socket-proxy`; Companion reaches it through the template's internal Docker link.
+Keep both container names and leave Companion's Docker host set to `tcp://qm-socket-proxy:2375`. The shared user-defined network resolves the proxy's container name without `--link`. Do not add a host port to `qm-socket-proxy`; only Companion's web and optional mobile ports are published. Other application containers do not need to join this network for discovery.
+
+If Unraid removes custom networks when Docker is disabled, enable **Preserve user-defined networks** in Docker settings during a planned maintenance window, or recreate this network before starting these containers. Changing Docker's global settings may stop other containers.
 
 Standard setup transfer works without the persistent mobile connection. To enable persistent access, edit `qm-companion` in Unraid, open the advanced settings and:
 
@@ -32,6 +44,18 @@ Open the owner panel at that exact HTTPS address before pairing. Enabling this f
 Unraid publishes this bridge port on the server's interfaces. Using a Tailscale origin does not make port 8788 Tailscale-only; use host firewall rules if it must be isolated from the LAN.
 
 Unraid creates the default appdata directory for its `nobody:users` account (`99:100`), which is also the account used by the Companion template. If a custom directory already exists, make sure that account can write to it before starting the container.
+
+## Existing installations
+
+An image update does not necessarily replace Unraid's saved container templates. If your saved template still uses `bridge` and `--link`, update both containers' settings as follows. This also repairs the installation error `links are only supported for user-defined networks`; changing the server address cannot fix that Docker argument error.
+
+1. Keep the existing appdata mapping, `SECRET_KEY`, `QM_PROXY_KEY`, service config mounts and mobile origin. Do not generate new keys or delete appdata. Changing the network does not require rotating the certificate or revoking phones.
+2. Create the `qm-companion` network with the command above if it does not exist. Stop only `qm-companion` while changing its proxy connection.
+3. Edit `qm-socket-proxy`, select **Custom: qm-companion**, and Apply. Keep port 2375 unpublished and keep the current proxy key and access flags.
+4. Edit `qm-companion` in Advanced View. Select **Custom: qm-companion**, remove only `--link=qm-socket-proxy:socket-proxy` from Extra Parameters, and set Docker host to `tcp://qm-socket-proxy:2375`. Keep the other hardening parameters, keys, paths, host ports and addresses. Apply, then start Companion if it is stopped.
+5. Open the Companion web interface and check that the existing owner account and discovered services are present. A `403` from the proxy is a separate key or access-permission issue; see [Docker proxy refuses requests](#docker-proxy-refuses-requests).
+
+If you use another dedicated user-defined bridge network, select the same one for both containers. If you intentionally renamed the proxy, use that exact container name in Docker host. Recreating a container on a network does not need a published Docker socket or privileged mode.
 
 ## Service config files
 

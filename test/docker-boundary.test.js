@@ -336,7 +336,7 @@ test('closes the container filesystem export route', () => {
 test('Unraid template keeps mobile access opt in', () => {
   const companion = readFileSync(join(projectRoot, 'templates', 'qm-companion.xml'), 'utf8');
   const expected = new Map([
-    ['DOCKER_HOST', { Default: 'tcp://socket-proxy:2375', Required: 'true' }],
+    ['DOCKER_HOST', { Default: 'tcp://qm-socket-proxy:2375', Required: 'true' }],
     ['8788', { Default: '', Mode: 'tcp', Required: 'false' }],
     ['MOBILE_API_ENABLED', { Default: 'false', Required: 'true' }],
     ['MOBILE_ENROLMENT_ENABLED', { Default: 'true', Required: 'true' }],

@@ -3,7 +3,7 @@
   <Name>qm-companion</Name>
   <Repository>ghcr.io/lewlew-glitch/qm-companion:latest</Repository>
   <Registry>https://github.com/lewlew-glitch/qm_companion/pkgs/container/qm-companion</Registry>
-  <Network>bridge</Network>
+  <Network>qm-companion</Network>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
   <WebUI>http://[IP]:[PORT:8787]</WebUI>
@@ -14,12 +14,12 @@
   <ReadMe>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/unraid.md</ReadMe>
   <Category>Tools:System</Category>
   <ExtraSearchTerms>quartermaster mobile docker dashboard</ExtraSearchTerms>
-  <Requires>Install qm-socket-proxy first and keep its container name. Use the same QM_PROXY_KEY in both templates and a separate SECRET_KEY. Docker access is read only and persistent mobile access is off by default.</Requires>
+  <Requires>Create the qm-companion Docker network first, then install qm-socket-proxy. Put both containers on that network and keep their names. Use the same QM_PROXY_KEY in both templates and a separate SECRET_KEY. Docker access is read only and persistent mobile access is off by default.</Requires>
   <License>MIT</License>
   <Screenshot>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/screenshots/dashboard-overview.png</Screenshot>
   <Screenshot>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/screenshots/live-monitoring.png</Screenshot>
   <Screenshot>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/screenshots/compose-stacks.png</Screenshot>
-  <ExtraParams>--restart=unless-stopped --read-only --cap-drop=ALL --security-opt=no-new-privileges --tmpfs=/tmp:size=16m,mode=1777 --label=qm.protected=true --user=99:100 --link=qm-socket-proxy:socket-proxy</ExtraParams>
+  <ExtraParams>--restart=unless-stopped --read-only --cap-drop=ALL --security-opt=no-new-privileges --tmpfs=/tmp:size=16m,mode=1777 --label=qm.protected=true --user=99:100</ExtraParams>
 
   <Config Name="Web UI port" Target="8787" Default="8787" Mode="tcp" Description="Host port for the Companion web interface." Type="Port" Display="always" Required="true" Mask="false"/>
   <Config Name="Mobile HTTPS port" Target="8788" Default="" Mode="tcp" Description="Enter 8788 when enabling the persistent mobile connection. Leave blank while it is off." Type="Port" Display="advanced" Required="false" Mask="false"/>
@@ -30,7 +30,7 @@
   <Config Name="Away address" Target="QM_REMOTE_HOST" Default="" Description="Optional host name or Tailscale address suggested for away routes." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Docker access limit" Target="DOCKER_ACCESS_MAX" Default="read" Description="Installed maximum: read, manage or shell. Keep read unless the proxy POST and EXEC settings are changed to match." Type="Variable" Display="always" Required="true" Mask="false"/>
   <Config Name="Bind address" Target="BIND_ADDRESS" Default="0.0.0.0" Description="Listener inside the container. Keep 0.0.0.0 for the Unraid port mapping." Type="Variable" Display="advanced" Required="true" Mask="false"/>
-  <Config Name="Docker host" Target="DOCKER_HOST" Default="tcp://socket-proxy:2375" Description="Internal qm-socket-proxy address. Keep this value unchanged and do not expose port 2375 on the host." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Docker host" Target="DOCKER_HOST" Default="tcp://qm-socket-proxy:2375" Description="Proxy container name on the shared qm-companion network. Keep both containers on that network and do not expose port 2375 on the host." Type="Variable" Display="advanced" Required="true" Mask="false"/>
   <Config Name="Trusted reverse proxy" Target="TRUST_PROXY" Default="false" Description="Set true only when the panel is behind a trusted HTTPS reverse proxy." Type="Variable" Display="advanced" Required="true" Mask="false"/>
   <Config Name="Persistent mobile connection" Target="MOBILE_API_ENABLED" Default="false" Description="Set true only after entering the Mobile HTTPS origin. Browser sign-in then moves from port 8787 to that direct HTTPS address." Type="Variable" Display="advanced" Required="true" Mask="false"/>
   <Config Name="Allow new phone pairings" Target="MOBILE_ENROLMENT_ENABLED" Default="true" Description="Allows new pairings while the persistent mobile connection is enabled. Existing paired phones continue when this is false." Type="Variable" Display="advanced" Required="true" Mask="false"/>

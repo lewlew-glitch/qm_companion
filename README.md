@@ -24,7 +24,7 @@ The standard setup transfer does not route app traffic through Companion. After 
 
 ## Unraid
 
-Community Apps uses separate `qm-socket-proxy` and `qm-companion` entries so the Docker socket is not mounted into the main application. Install the proxy first, then Companion with the same proxy key. See [Unraid](docs/unraid.md) for the complete setup and Docker access settings.
+Community Apps uses separate `qm-socket-proxy` and `qm-companion` entries so the Docker socket is not mounted into the main application. Create the dedicated `qm-companion` Docker network first, then install the proxy and Companion on it with the same proxy key. See [Unraid](docs/unraid.md) for the complete setup and Docker access settings.
 
 ## Quick install
 

@@ -3,7 +3,7 @@
   <Name>qm-socket-proxy</Name>
   <Repository>ghcr.io/lewlew-glitch/qm-companion-socket-proxy:latest</Repository>
   <Registry>https://github.com/lewlew-glitch/qm_companion/pkgs/container/qm-companion-socket-proxy</Registry>
-  <Network>bridge</Network>
+  <Network>qm-companion</Network>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
   <Icon>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/src/assets/logo.png</Icon>
@@ -13,7 +13,7 @@
   <ReadMe>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/unraid.md</ReadMe>
   <Category>Tools:System</Category>
   <ExtraSearchTerms>quartermaster docker socket proxy</ExtraSearchTerms>
-  <Requires>Install before qm-companion. Keep the container name, do not publish port 2375 and use the same QM_PROXY_KEY in both templates.</Requires>
+  <Requires>Create the qm-companion Docker network first. Install before qm-companion and select that network for both containers. Keep the container name, do not publish port 2375 and use the same QM_PROXY_KEY in both templates.</Requires>
   <License>MIT</License>
   <ExtraParams>--restart=unless-stopped --read-only --cap-drop=ALL --security-opt=no-new-privileges --tmpfs=/tmp:size=4m,mode=1777 --tmpfs=/run:size=1m,mode=0755 --label=qm.protected=true</ExtraParams>
 
