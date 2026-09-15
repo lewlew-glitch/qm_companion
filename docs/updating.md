@@ -57,3 +57,23 @@ To disable automatic release checks, set `COMPANION_UPDATE_CHECK=false` in Compa
 container environment and recreate it using the existing installation configuration.
 You can still open the releases page manually. Published images carry their release
 tag; source installations use the version in `package.json`.
+
+## Source-build version mismatch in v0.1.4 and v0.1.5
+
+Those tags still contain `0.1.3` in the package manifest. A source build can therefore
+show `0.1.3` and offer an update even when the checked-out code is newer. Published
+images receive their version from the release workflow and do not use that fallback.
+An incognito window or an uncached Docker build cannot correct the old manifest.
+
+Check the checkout with `git describe --tags --exact-match HEAD` and `git status --short`.
+The displayed number alone does not establish whether the running container includes
+the new code. Existing tags are not rewritten. A checkout pinned to an affected tag keeps its old
+manifest until it moves to a corrected commit or release and the container is rebuilt.
+
+## Preparing release metadata
+
+Before creating a release tag, update the version in `package.json` and both root
+version entries in `package-lock.json`. `npm version <version> --no-git-tag-version`
+updates these together. Commit the metadata with the release changes before tagging.
+The container publishing workflow checks that all three values match the release tag
+and stops before publishing if they disagree.

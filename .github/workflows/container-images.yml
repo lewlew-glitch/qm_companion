@@ -24,6 +24,11 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Verify release version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: node scripts/check-release-version.mjs
+
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: node verify.mjs

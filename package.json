@@ -1,6 +1,6 @@
 {
   "name": "qm_companion",
-  "version": "0.1.3",
+  "version": "0.1.6",
   "private": true,
   "description": "A self-hosted companion for Quartermaster pairing, service status and opt-in Docker management.",
   "type": "module",
