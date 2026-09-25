@@ -11,6 +11,7 @@ The standard setup transfer does not route app traffic through Companion. After 
 - Shows containers, stacks, images, volumes, networks, events, logs, and resource use.
 - Provides optional Docker lifecycle controls, image operations, Compose deployment, scheduled jobs, and an in-container shell.
 - Stores credentials in authenticated encrypted state.
+- Sends alerts from your services, with your own wording, to your phone.
 - Supports one owner account, two-factor authentication, session revocation, and recovery codes.
 - Runs without telemetry or a hosted account dependency.
 
@@ -112,6 +113,14 @@ For a standard setup transfer:
 3. Create the transfer, scan it in Quartermaster, and enter the separately displayed setup code.
 
 The transfer expires after three minutes and is consumed after use. A downloaded `.qmcompanion` file consumes the same transfer as the QR code. Treat either form, together with its setup code, as sensitive until it expires or is consumed.
+
+Uptime Kuma, PeaNUT and Pulsarr connections require **Quartermaster 1.3 or later**. They start unselected in Set up; update the app before selecting them. Transfers containing only the previously supported services keep the existing format.
+
+- Uptime Kuma accepts an optional metrics API key from **Settings, API Keys**. Leave it empty for metrics with authentication disabled, or complete authentication in Quartermaster.
+- PeaNUT transfers its addresses without a password. Enter its Basic username and password in Quartermaster when PeaNUT authentication is enabled. Its Homepage widget `key` is a UPS name and is never imported as an API key.
+- Pulsarr accepts a dedicated API key from **Utilities, API Keys**. Without a supplied key, its connection is included disabled until credentials are entered.
+
+These three Marketplace entries connect to existing installations; Companion does not provide deployment starters for them. Port-only discovery needs a product signature, so authenticated PeaNUT may require Docker discovery or manual setup in the app.
 
 The optional direct app connection uses the mobile Compose profile and HTTPS port 8788. After deploying it, open **Devices**, create a pairing key or QR code, and compare the five words shown by Companion and the phone before approval. The connection is bound to one configured HTTPS origin.
 

@@ -50,7 +50,7 @@ The mobile profile enables a dedicated HTTPS listener on port 8788. Pairing uses
 
 The connection supports one exact origin from `QM_ADVERTISED_ORIGIN`. A direct LAN origin or a direct Tailscale origin is supported. Automatic LAN and away switching, reverse-proxy fronting, and tunnel fronting are not supported for this listener. Once device grants exist, changing the origin requires explicit approval and every phone must pair again. An installation with no grants may adopt a valid origin automatically.
 
-When the profile is enabled, HTTPS 8788 serves the owner panel and mobile API. Plain HTTP exposes only the limited health and static responses; it does not expose setup, sign-in, owner, device, or API data and does not accept management requests.
+When the profile is enabled, HTTPS 8788 serves the owner panel and mobile API. Plain HTTP exposes the limited health and static responses; it does not expose setup, sign-in, owner, device, or API data and does not accept management requests. Service webhooks are accepted on the plain listener at secret `/hooks/` addresses. They carry no credential and return nothing but an acknowledgement.
 
 ### Compose addresses
 

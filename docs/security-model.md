@@ -20,6 +20,8 @@ Persistent state is authenticated. Sensitive fields are encrypted with keys deri
 
 Docker access mode and mobile state use separate authenticated sidecars bound to the installation. Back up the whole data volume rather than only `qm-companion.json`. A damaged or unauthenticated sidecar is refused instead of being interpreted with a default that could raise access.
 
+Alert settings, phone registrations, history and samples are encrypted together in `qm-alerts-v1.json`. History retains up to 500 records and samples up to five per source. The file is limited to 16 MiB, so older samples are removed first when space is needed; retained samples keep their original fields and wording.
+
 API keys are not rendered in panel pages. Companion may use a key in a server-side request to its matching service. A phone setup receives it only inside the encrypted one-time package. Container inspection sends the browser an allowlist of operational values and otherwise reports only that a value exists.
 
 Pairing secrets are submitted by `POST`, not query strings. Pairing responses use `no-store` and a no-referrer policy. A standard setup transfer requires possession of both the redemption capability and the separately displayed setup code.
@@ -31,6 +33,10 @@ The panel's plain HTTP mode is intended for a trusted private network. An on-pat
 Cloudflare Access service credentials are accepted only when the Companion page itself uses HTTPS. They are encrypted and attached only to matching reviewed HTTPS away hosts.
 
 The persistent mobile connection has a separate TLS and pairing design. Phones pin the approved certificate and origin. See [Mobile connections](mobile-connection.md) and [TLS and certificates](tls-and-certificates.md).
+
+Service webhooks are accepted on the plain listener at secret `/hooks/` addresses. They carry no credential and return nothing but an acknowledgement.
+
+Webhooks allow 60 requests per source per minute. A shared ceiling of 8,192 requests per minute applies before secret lookup. Secret lookups use a validated index that is refreshed when the alerts file changes, so rejected requests do not repeatedly decrypt stored history.
 
 ## Service credentials
 
@@ -59,6 +65,8 @@ Companion has no telemetry and no hosted account dependency. These features make
 - Service probes contact configured local service addresses.
 - Registry update checks and image operations contact container registries.
 - Registry metadata requests use HTTPS, reject redirects, limit response size, and reject names that resolve to local, private, or link-local addresses.
+- Companion release checks contact GitHub for newer releases. Set `COMPANION_UPDATE_CHECK=false` to switch them off.
+- Alerts, when a phone turns them on, send each alert to Expo's push service (`exp.host`), which delivers it through Apple. The request carries the phone's push token and the alert text. Set `ALERTS_ENABLED=false` to switch alerts off.
 
 ## Limits
 
@@ -77,6 +85,7 @@ Script bearer tokens are read-only and limited to documented status endpoints. C
 | `SESSION_TTL_HOURS` | no | Owner session lifetime. The default is 24 hours. |
 | `COOKIE_SECURE` | no | Explicitly controls the session cookie's Secure flag. |
 | `TRUST_PROXY` | no | Enables trusted reverse-proxy handling and Secure cookies by default. Set only behind a trusted HTTPS proxy. |
+| `ALERTS_ENABLED` | no | Set to `false` to refuse service webhooks and stop sending alerts. Enabled by default; phones must register to receive alerts. |
 
 ## Reporting a vulnerability
 
