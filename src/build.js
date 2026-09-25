@@ -8,6 +8,7 @@ import {
   labelFor,
   pairingCredentialState,
   canTransferApiKey,
+  minimumAppVersionForKind,
 } from './kinds.js';
 import { availabilityFor, dockerStateWord } from './availability.js';
 import { schemeForKindPorts } from './probe.js';
@@ -172,9 +173,10 @@ export function availabilityOf(d) {
   return availabilityFor(d || {});
 }
 
-// Preselect only running, reachable rows without credential conflicts.
+// New app integrations require an explicit selection while older apps remain in use.
+// Otherwise preselect running, reachable rows without credential conflicts.
 export function includedByDefault(d) {
-  return d.credentialConflict !== true && availabilityOf(d) === 'reachable';
+  return !minimumAppVersionForKind(d.kind) && d.credentialConflict !== true && availabilityOf(d) === 'reachable';
 }
 
 

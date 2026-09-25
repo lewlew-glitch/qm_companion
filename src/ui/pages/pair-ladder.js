@@ -16,6 +16,9 @@ export const CONFIGURE_WORDING = {
 
 export function deferredCredentialMarkup(kind, state) {
   const label = labelFor(kind);
+  if (kind === 'peanut' && state === 'not-required') {
+    return '<div class="pair-ladder" data-next-step><span class="lad-hint">PeaNUT credentials are entered in the app. If PeaNUT authentication is enabled, add its Basic username and password after importing. Companion does not transfer this password.</span></div>';
+  }
   if (state === 'sign-in') {
     return `<div class="pair-ladder" data-next-step>
       <span class="lad-hint"><b>Next step:</b> Companion transfers the reviewed addresses but no account password. After importing, open ${escapeHtml(label)} in Quartermaster and complete its sign-in.</span>
@@ -75,6 +78,20 @@ export function ladderMarkup(kind, rung, control, mintEnabledKinds = [], instanc
 function renderLadderMarkup(kind, rung, control, mintEnabledKinds, instanceName) {
   const enabledKinds = Array.isArray(mintEnabledKinds) ? mintEnabledKinds : [];
   const made = `<div class="key-made" data-made>${I.check}<span>Key saved in Companion</span><button type="button" data-forget>Remove from Companion</button></div>`;
+  if (kind === 'uptimekuma') {
+    return `${pasteKeyMarkup(
+      kind,
+      'If Uptime Kuma protects its metrics, create a key under Settings, API Keys and paste it here. Leave this empty only when metrics authentication is disabled. Quartermaster checks the connection before saving.',
+      'Open API key settings', '', 'Uptime Kuma metrics API key (optional)',
+    )}${made}`;
+  }
+  if (kind === 'pulsarr') {
+    return `${pasteKeyMarkup(
+      kind,
+      'Create a dedicated key under Utilities, API Keys in Pulsarr, then paste it here. Companion encrypts it for the phone to check before saving.',
+      'Open Pulsarr', '', 'Pulsarr API key',
+    )}${made}`;
+  }
   if (kind === 'plex') {
     return `${pasteKeyMarkup(
       kind,

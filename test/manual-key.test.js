@@ -81,6 +81,8 @@ for (const fixture of [
   { kind: 'tdarr', image: 'ghcr.io/haveagitgat/tdarr:latest', port: 18082, signature: 'Tdarr' },
   { kind: 'gluetun', image: 'qmcgaw/gluetun:latest', port: 18083, signature: 'Gluetun' },
   { kind: 'plex', image: 'plexinc/pms-docker:latest', port: 18084, signature: 'MediaContainer' },
+  { kind: 'uptimekuma', image: 'louislam/uptime-kuma:2', port: 18085, signature: 'Uptime Kuma' },
+  { kind: 'pulsarr', image: 'lakker/pulsarr:latest', port: 18086, signature: 'Pulsarr' },
 ]) test(`${fixture.kind} manual pairing credentials remain sealed and are not echoed`, async (t) => {
   const docker = createHttpServer((req, res) => {
     if (req.method === 'GET' && req.url === '/containers/json?all=1') {

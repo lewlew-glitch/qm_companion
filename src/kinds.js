@@ -1,5 +1,6 @@
 // Supported services, default ports and image mappings.
 export const PORTS = {
+  uptimekuma: 3001, peanut: 8080, pulsarr: 3003,
   radarr: 7878, sonarr: 8989, lidarr: 8686, prowlarr: 9696, bazarr: 6767,
   sabnzbd: 8080, nzbget: 6789, qbittorrent: 8080, transmission: 9091, deluge: 8112,
   jackett: 9117, nzbhydra2: 5076, qui: 7476,
@@ -32,11 +33,11 @@ export const NEEDS_LOGIN = new Set([
 // Credential modes allowed to run with an empty secret object.
 export const CREDENTIAL_OPTIONAL = new Set([
   'transmission', 'glances', 'adguard', 'pihole', 'tdarr', 'maintainerr', 'scrutiny', 'dozzle', 'gluetun',
-  'streamystats', 'shelfmark',
+  'streamystats', 'shelfmark', 'uptimekuma', 'peanut',
 ]);
 
 // These optional modes use login or proxy authentication, not a scalar API key.
-const OPTIONAL_LOGIN = new Set(['transmission', 'adguard', 'dozzle', 'maintainerr', 'scrutiny', 'shelfmark']);
+const OPTIONAL_LOGIN = new Set(['transmission', 'adguard', 'dozzle', 'maintainerr', 'scrutiny', 'shelfmark', 'peanut']);
 
 export function canTransferApiKey(kind) {
   return Object.hasOwn(PORTS, kind) && !NEEDS_LOGIN.has(kind) && !OPTIONAL_LOGIN.has(kind);
@@ -69,6 +70,11 @@ const ALIASES = {
 };
 
 const KINDS = Object.keys(PORTS);
+const APP_13_KINDS = new Set(['uptimekuma', 'peanut', 'pulsarr']);
+
+export function minimumAppVersionForKind(kind) {
+  return APP_13_KINDS.has(kind) ? '1.3' : undefined;
+}
 
 function normalise(s) {
   return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -96,13 +102,14 @@ export function matchImage(image, name) {
       if (c.includes(normalise(alias))) return kind;
     }
     for (const kind of KINDS) {
-      if (c.includes(kind)) return kind;
+      if (!APP_13_KINDS.has(kind) && c.includes(kind)) return kind;
     }
   }
   return null;
 }
 
 const LABELS = {
+  uptimekuma: 'Uptime Kuma', peanut: 'PeaNUT', pulsarr: 'Pulsarr',
   qbittorrent: 'qBittorrent', sabnzbd: 'SABnzbd', nzbget: 'NZBGet', nzbhydra2: 'NZBHydra2',
   jellyfin: 'Jellyfin', jellyseerr: 'Jellyseerr', musicseerr: 'MusicSeerr', plex: 'Plex',
   homeassistant: 'Home Assistant', unifi: 'UniFi', truenas: 'TrueNAS', adguard: 'AdGuard Home', crowdsec: 'CrowdSec',

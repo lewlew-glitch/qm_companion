@@ -213,6 +213,7 @@ export function stackClass(name) {
 
 // Stable fallback colours by service kind.
 export const BRANDS = {
+  uptimekuma: '#5CDD8B', peanut: '#C8873D', pulsarr: '#6956DE',
   radarr: '#E5A00D', sonarr: '#2193B5', prowlarr: '#E66000', lidarr: '#159552', bazarr: '#BE6A38',
   jellyfin: '#8E44AD', emby: '#43A047', plex: '#C58B0B',
   jellyseerr: '#6D5ED1', musicseerr: '#6D5ED1', wizarr: '#6D5ED1',

@@ -31,7 +31,7 @@ const SETTINGS_PATH = {
   coolify: '/security/api-tokens', dispatcharr: '/settings', unifi: '/', unraid: '/Settings',
   kavita: '/preferences#authentication', audiobookshelf: '/config', readmeabook: '/settings', shelfarr: '/settings',
   homeassistant: '/profile/security', pihole: '/admin/', streamystats: '/',
-  tdarr: '/', gluetun: '/', plex: '/web',
+  tdarr: '/', gluetun: '/', plex: '/web', uptimekuma: '/settings/api-keys', pulsarr: '/',
 };
 
 // Derive file-backed kinds directly from discovery rules.
@@ -57,7 +57,7 @@ export function canSaveManualKey(kind, apiKey, credentialConflict = false) {
   if (!Object.hasOwn(PORTS, kind)) return false;
   const state = pairingCredentialState(kind, apiKey, credentialConflict);
   return state === 'missing-key'
-    || (['pihole', 'streamystats', 'tdarr', 'gluetun'].includes(kind) && state === 'not-required')
+    || (['pihole', 'streamystats', 'tdarr', 'gluetun', 'uptimekuma'].includes(kind) && state === 'not-required')
     || (kind === 'plex' && state === 'sign-in');
 }
 

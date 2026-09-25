@@ -16,9 +16,9 @@ const { credentialTag } = await import('../src/ui/bits.js');
 after(() => rmSync(dataDir, { recursive: true, force: true }));
 
 const modes = {
-  requiredKey: 'radarr sonarr lidarr prowlarr bazarr sabnzbd jackett nzbhydra2 qui jellyfin emby jellyseerr wizarr tautulli jellystat tracearr portainer dockhand arcane coolify dispatcharr technitium homeassistant unifi proxmox truenas unraid komga kavita audiobookshelf readmeabook shelfarr immich'.split(' '),
-  optionalKey: ['pihole', 'streamystats', 'tdarr', 'gluetun', 'glances'],
-  optionalLogin: ['transmission', 'adguard', 'dozzle', 'maintainerr', 'scrutiny', 'shelfmark'],
+  requiredKey: 'pulsarr radarr sonarr lidarr prowlarr bazarr sabnzbd jackett nzbhydra2 qui jellyfin emby jellyseerr wizarr tautulli jellystat tracearr portainer dockhand arcane coolify dispatcharr technitium homeassistant unifi proxmox truenas unraid komga kavita audiobookshelf readmeabook shelfarr immich'.split(' '),
+  optionalKey: ['uptimekuma', 'pihole', 'streamystats', 'tdarr', 'gluetun', 'glances'],
+  optionalLogin: ['peanut', 'transmission', 'adguard', 'dozzle', 'maintainerr', 'scrutiny', 'shelfmark'],
   requiredLogin: ['qbittorrent', 'deluge', 'synology', 'nzbget', 'ugreen', 'musicseerr', 'beszel', 'bookorbit', 'crowdsec'],
   pairedKey: ['komodo'],
   oauth: ['plex'],
@@ -54,17 +54,17 @@ function decode(result) {
 }
 
 test('every supported kind has an explicit handoff credential contract', () => {
-  assert.equal(policy.size, 55);
+  assert.equal(policy.size, Object.keys(PORTS).length);
   assert.deepEqual([...policy.keys()].sort(), Object.keys(PORTS).sort());
 });
-for (const hasKeys of [false, true]) test(`all 55 kinds survive an encrypted handoff with credentials ${hasKeys ? 'supplied' : 'absent'}`, () => {
+for (const hasKeys of [false, true]) test(`all supported kinds survive an encrypted handoff with credentials ${hasKeys ? 'supplied' : 'absent'}`, () => {
   const rows = rowsWithKeys(hasKeys);
   const result = bundle(rows);
   const payload = decode(result);
   assert.deepEqual(payload, result.payload);
-  assert.equal(payload.services.length, 55);
+  assert.equal(payload.services.length, Object.keys(PORTS).length);
   assert.deepEqual(payload.profiles[0].serviceIds, payload.services.map((service) => service.id));
-  assert.equal(new Set(payload.services.map((service) => service.id)).size, 55);
+  assert.equal(new Set(payload.services.map((service) => service.id)).size, Object.keys(PORTS).length);
   assert.doesNotMatch(result.envelopeJson, /CATALOGUE-SECRET/);
   for (const service of payload.services) {
     const mode = policy.get(service.kind);
@@ -90,13 +90,13 @@ for (const hasKeys of [false, true]) test(`all 55 kinds survive an encrypted han
 
 test('larger mixed stacks preserve exact selected instances, routes and keys across reissues', () => {
   const rows = rowsWithKeys(true, 2);
-  assert.equal(rows.length, 110);
-  assert.equal(new Set(rows.map((row) => row.instanceId)).size, 110);
+  assert.equal(rows.length, Object.keys(PORTS).length * 2);
+  assert.equal(new Set(rows.map((row) => row.instanceId)).size, Object.keys(PORTS).length * 2);
   const selected = rows.filter((_row, index) => index % 2 === 1);
   const first = bundle(rows, selected);
   const renewed = bundle([...rows].reverse(), [...selected].reverse(), 'catalogue_transfer_fixture_02');
   const firstByLabel = new Map(first.payload.services.map((service) => [service.label, service]));
-  assert.equal(first.payload.services.length, 55);
+  assert.equal(first.payload.services.length, Object.keys(PORTS).length);
   for (const service of renewed.payload.services) assert.deepEqual(service, firstByLabel.get(service.label));
   const payload = decode(first);
   for (const row of rows) {

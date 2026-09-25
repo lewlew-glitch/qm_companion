@@ -209,6 +209,9 @@ export const MARKETPLACE_CATEGORY_LABELS = Object.freeze(Object.fromEntries(
 
 // Catalogue metadata only. Deployment support is gated separately.
 const CATALOGUE = {
+  uptimekuma: ['monitoring', 'Monitors service uptime and publishes availability and response-time metrics.'],
+  peanut: ['infrastructure', 'Reports UPS power, battery and device status through Network UPS Tools.'],
+  pulsarr: ['requests', 'Monitors Plex watchlists and routes media requests to Sonarr and Radarr.'],
   radarr: ['media-automation', 'Manages and automates a movie library.'],
   sonarr: ['media-automation', 'Manages and automates a TV series library.'],
   lidarr: ['media-automation', 'Manages and automates a music library.'],
@@ -267,6 +270,9 @@ const CATALOGUE = {
 };
 
 const UPSTREAM = Object.freeze({
+  uptimekuma: 'https://github.com/louislam/uptime-kuma',
+  peanut: 'https://github.com/Brandawg93/PeaNUT',
+  pulsarr: 'https://github.com/jamcalli/Pulsarr',
   radarr: 'https://github.com/Radarr/Radarr',
   sonarr: 'https://github.com/Sonarr/Sonarr',
   lidarr: 'https://github.com/Lidarr/Lidarr',

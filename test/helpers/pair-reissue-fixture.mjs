@@ -38,7 +38,7 @@ async function until(check) {
   throw new Error('Fixture did not become ready');
 }
 
-export async function pairFixture(t, { failQrAt = 0, holdQrAt = 0, extraService = false, withKeys = false } = {}) {
+export async function pairFixture(t, { failQrAt = 0, holdQrAt = 0, extraService = false, withKeys = false, newConnections = false } = {}) {
   const dataDir = mkdtempSync(join(tmpdir(), 'qm-reissue-selection-'));
   mkdirSync(join(dataDir, 'stack'));
   const fixtures = [];
@@ -63,6 +63,7 @@ export async function pairFixture(t, { failQrAt = 0, holdQrAt = 0, extraService 
   const containers = [];
   const detected = [['bazarr', 6767, 'a'], ['radarr', 7878, 'b'], ['sonarr', 8989, 'c']];
   if (extraService) detected.push(['prowlarr', 9696, 'd']);
+  if (newConnections) detected.push(['uptimekuma', 3001, 'e'], ['peanut', 8080, 'f'], ['pulsarr', 3003, '0']);
   for (const [kind, privatePort, id] of detected) {
     const publicPort = await listen(createServer((_req, res) => {
       res.writeHead(200, { 'content-type': 'text/html' });
@@ -127,6 +128,7 @@ export async function pairFixture(t, { failQrAt = 0, holdQrAt = 0, extraService 
     return post('/pair', body);
   }
   return {
+    initialHtml: page,
     post,
     create: (kind) => createMany([kind]),
     createMany,

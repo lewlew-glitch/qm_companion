@@ -5,6 +5,9 @@ import { fetchTextBounded } from './net.js';
 import { httpsTextBounded } from './probe-tls.js';
 
 const FINGERPRINTS = [
+  { kind: 'uptimekuma', port: 3001, path: '/', sig: /<title>\s*Uptime Kuma\s*<\/title>/i },
+  { kind: 'peanut', port: 8080, path: '/api/v1/info', sig: /"name"\s*:\s*"peanut"/i },
+  { kind: 'pulsarr', port: 3003, path: '/', sig: /<title>\s*Pulsarr\s*<\/title>/i },
   { kind: 'radarr', port: 7878, path: '/', sig: /radarr/i },
   { kind: 'sonarr', port: 8989, path: '/', sig: /sonarr/i },
   { kind: 'prowlarr', port: 9696, path: '/', sig: /prowlarr/i },
@@ -41,6 +44,18 @@ export function probeScheme(fp) {
   return fp.scheme === 'http' || fp.scheme === 'https' ? fp.scheme : schemeFor(fp.kind);
 }
 
+function fingerprintMatches(fp, text, server = '') {
+  if (fp.kind === 'peanut') {
+    // The public-port scan has no Docker identity to rely on. A mention in HTML or a proxy
+    // error must not identify an unrelated service sharing PeaNUT's common 8080 port.
+    try {
+      const info = JSON.parse(text);
+      return !!info && typeof info === 'object' && !Array.isArray(info) && info.name === 'peanut';
+    } catch { return false; }
+  }
+  return fp.sig.test(text) || fp.sig.test(server);
+}
+
 // Follow at most one same-origin redirect.
 const PROBE_MAX_BYTES = 256 * 1024;
 
@@ -75,7 +90,7 @@ export async function probeOne(host, fp, timeoutMs) {
       text = answer.text;
       server = answer.response.headers.get('server') || '';
     }
-    const confirmed = fp.sig.test(text) || fp.sig.test(server || '');
+    const confirmed = fingerprintMatches(fp, text, server || '');
     return { kind: fp.kind, port: fp.port, url, up: true, confirmed };
   } catch {
     return { kind: fp.kind, port: fp.port, url, up: false, confirmed: false };
@@ -156,7 +171,7 @@ export async function probeInstance(host, row, timeoutMs = 3000) {
   if (!target) return undefined;
   const url = `${target.scheme}://${host}:${target.publishedPort}`;
   const verdict = (answer) => provesPublishedRoute(answer.status)
-    || (target.sig ? target.sig.test(answer.text) || target.sig.test(answer.server || '') : false);
+    || (target.sig ? fingerprintMatches({ kind: row.kind, sig: target.sig }, answer.text, answer.server || '') : false);
   try {
     const answer = await dialInstance(target.scheme, host, target.publishedPort, target.path, timeoutMs);
     return { instanceId: row.instanceId, kind: row.kind, port: target.publishedPort, url, up: true, confirmed: verdict(answer) };

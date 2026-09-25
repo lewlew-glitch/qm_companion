@@ -1,6 +1,6 @@
 import { escapeHtml } from '../../http.js';
 import { config } from '../../config.js';
-import { labelFor, PORTS, pairingCredentialState } from '../../kinds.js';
+import { labelFor, PORTS, pairingCredentialState, minimumAppVersionForKind } from '../../kinds.js';
 import { canSaveManualKey, ladderFor } from '../../keyladder.js';
 import { I, badge, jsafe, credentialTag, ESC_FN } from '../bits.js';
 import { board, shell } from '../chrome.js';
@@ -145,7 +145,7 @@ function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [
     const markup = `<section class="pair-service${group === 'reachable' ? '' : ` is-${group}`}" data-pair-row data-instance="${escapeHtml(d.instanceId)}" data-kind="${escapeHtml(d.kind)}" data-cred-state="${escapeHtml(state)}" data-empty-cred-state="${escapeHtml(pairingCredentialState(d.kind))}"${storedCredential ? ' data-minted="1"' : ''} data-avail="${escapeHtml(availability)}" data-docker-state="${escapeHtml(d.dockerState || '')}" data-url="${escapeHtml(d.url || '')}" data-order="${index}"${forcedDecision ? ' data-forced="1"' : ''}>
       <input type="hidden" name="service_${index}" value="${escapeHtml(d.instanceId)}">
       <div class="pair-service-head">
-        <label class="pair-pick"><input type="checkbox" name="include_${index}" ${picked ? 'checked' : ''} ${blocked ? 'disabled' : ''}>${badge(d.kind, title)}<span><b>${escapeHtml(title)}</b><small>${escapeHtml(d.kind)} · port ${escapeHtml(d.port || PORTS[d.kind] || 'unknown')}</small></span></label>
+        <label class="pair-pick"><input type="checkbox" name="include_${index}" ${picked ? 'checked' : ''} ${blocked ? 'disabled' : ''}>${badge(d.kind, title)}<span><b>${escapeHtml(title)}</b><small>${escapeHtml(d.kind)} · port ${escapeHtml(d.port || PORTS[d.kind] || 'unknown')}</small>${minimumAppVersionForKind(d.kind) ? '<small>Requires Quartermaster 1.3 or later. Select after updating the app.</small>' : ''}</span></label>
         <div class="pair-route-summary" data-route-summary><span class="mono">${escapeHtml(localRoute)}</span><small>${escapeHtml(awayRoute)}</small></div>
         <span class="credwrap" data-cred>${group === 'reachable' ? credentialTag(d, 'configure') : availabilityChip(availability, d.dockerState)}</span>
         <button class="btn pair-service-toggle" type="button" data-pair-toggle aria-expanded="false" aria-controls="pair-body-${index}">${escapeHtml(toggleLabel)}${I.chev}</button>
@@ -219,7 +219,8 @@ function pairConfigurePage({ detected, draft, issues, csrf, mintEnabledKinds = [
           var missing = state === 'missing-key' || ((state === 'not-required' || state === 'sign-in') && !!LADDERS[row.dataset.instance]);
           if (ladder) ladder.hidden = !missing;
           if (made) made.classList.toggle('on', !missing && row.dataset.minted === '1');
-          if (next) next.hidden = state !== 'sign-in' && state !== 'key-and-secret';
+          if (next) next.hidden = state !== 'sign-in' && state !== 'key-and-secret'
+            && !(row.dataset.kind === 'peanut' && state === 'not-required');
         }
         function setChip(row, state) {
           if (state === row.dataset.credState) return;

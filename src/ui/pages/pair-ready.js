@@ -1,3 +1,4 @@
+import { minimumAppVersionForKind } from '../../kinds.js';
 import { escapeHtml } from '../../http.js';
 import { config } from '../../config.js';
 import { badge, jsafe, credentialTag, ESC_FN } from '../bits.js';
@@ -24,6 +25,7 @@ export function pairReadyPage({ bundle, qrDataUrl, filePath, csrf }) {
   return shell('pair', csrf || null, meta, `
     ${board('pair', 'One-time transfer ready', '', meta)}
     <p class="sub">Every service listed below is included. The badges describe which credentials come with it. Quartermaster checks each connection before saving; services without credentials may need you to sign in. The encrypted transfer disappears after the first download or when the timer ends.</p>
+    ${bundle.summary.some((s) => minimumAppVersionForKind(s.kind)) ? '<p class="sub"><b>This transfer requires Quartermaster 1.3 or later.</b> Update the app before scanning or opening the file.</p>' : ''}
     ${awaiting.length ? liveCheckMarkup('pair-ready-live', 'Watching for late keys. Checked when this page loaded.') : ''}
     <div class="pair-wrap">
       <div>
