@@ -8,6 +8,7 @@ import { acknowledgeEnrolment, claimEnrolment, enrolmentStatus, retrieveGrant } 
 import { authenticateAccess, refreshTokens } from './devices.js';
 import { containerDetailDto, containersDto, eventsDto, stacksDto, summaryDto, updatesDto } from './summary.js';
 import { createLimiter } from './ratelimit.js';
+import { handleAlertRoute, resetAlertRouteLimiterForTest } from '../alerts/routes.js';
 
 const ENROLMENT_ID_RE = /^[A-Za-z0-9_-]{22}$/;
 const CAPS = { identity: 2048, claim: 8192, status: 4096, grant: 32768, ack: 2048, refresh: 4096 };
@@ -126,7 +127,7 @@ async function handleRefresh(req, res, ip) {
 }
 
 /** Advertise optional route capabilities for client-side feature gating. */
-export const MOBILE_CAPABILITIES = ['containers.detail'];
+export const MOBILE_CAPABILITIES = Object.freeze(['containers.detail', 'alerts.v1']);
 
 const READ_ROUTES = {
   '/api/mobile/v1/summary': { scope: 'summary.read', load: () => summaryDto() },
@@ -161,6 +162,7 @@ export function createMobileRouter(server, flags, ownerSurface = null) {
       return error(res, 404, 'not_found', 'No such route.');
     }
     if (path === '/api/mobile/v1/token/refresh' && method === 'POST') return handleRefresh(req, res, ip);
+    if (path === '/api/mobile/v1/alerts' || path.startsWith('/api/mobile/v1/alerts/')) return handleAlertRoute(req, res, url);
 
     // Detail remains allow-listed telemetry for a container already present in the list.
     const detail = method === 'GET' ? /^\/api\/mobile\/v1\/containers\/([0-9a-f]{12})$/.exec(path) : null;
@@ -190,4 +192,5 @@ export function createMobileRouter(server, flags, ownerSurface = null) {
 
 export function resetMobileLimitersForTest() {
   for (const limiter of Object.values(limiters)) limiter.reset();
+  resetAlertRouteLimiterForTest();
 }

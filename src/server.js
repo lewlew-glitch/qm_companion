@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import QRCode from 'qrcode';
 
 import { config } from './config.js';
+import { handleAlertIntake } from './alerts/intake.js';
 import { createAuthPlane } from './auth-plane.js';
 import { hasOwner } from './store.js';
 import { bootstrapSetupToken, setupTokenWasGenerated } from './setup-token.js';
@@ -1244,7 +1245,7 @@ function refuseOnPlaintext(req, res, target, what) {
 <div class="scroll" style="padding:24px;max-width:70ch">
 <p>${escapeHtml(what)}</p>
 ${destination}
-<p>This plain address exposes only the health check and static assets. It never accepts a credential or returns panel data.</p>
+<p>This plain address exposes the health check, static assets and service webhook addresses. It never accepts a credential or returns panel data.</p>
 </div>`);
   }
   return json(res, 403, {
@@ -1260,6 +1261,8 @@ async function route(req, res, panel = {}) {
   const url = new URL(req.url, securePanel ? 'https://x' : 'http://x');
   const path = url.pathname;
   const method = req.method;
+
+  if (!securePanel && path.startsWith('/hooks/')) return handleAlertIntake(req, res, path);
 
   // Public health endpoint.
   if (path === '/healthz') return send(res, 200, 'ok');

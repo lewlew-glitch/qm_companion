@@ -5,6 +5,7 @@ import { getCron, setCron } from './store.js';
 import { prune, pruneContainersGuarded, protectedContainerReason, pullImage, execInContainer, inspectContainer, containerAction } from './docker.js';
 import { runUpdateCheck } from './updates.js';
 import { canManageDocker, canUseDockerShell, dockerModeAllows } from './docker-access.js';
+import { checkAlertReceipts } from './alerts/delivery.js';
 
 const BUILTINS = [
   { id: 'prune-images', name: 'Prune dangling images', does: 'Removes untagged image layers nothing references.', action: 'images', schedule: { type: 'weekly', day: 0, hour: 3, minute: 0 }, enabled: false },
@@ -328,9 +329,13 @@ async function runDueJobs() {
 const triggerCronTick = createGuardedTrigger(runDueJobs, () => {
   process.stderr.write('cron tick failed; no overlapping retry was started\n');
 });
+const triggerAlertReceipts = createGuardedTrigger(checkAlertReceipts);
 
 export function startCron() {
   if (timer) return;
-  timer = setInterval(triggerCronTick, 60 * 1000);
+  timer = setInterval(() => {
+    triggerCronTick();
+    triggerAlertReceipts();
+  }, 60 * 1000);
   timer.unref();
 }

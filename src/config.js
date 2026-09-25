@@ -35,6 +35,7 @@ let port;
 let sessionTtlHours;
 let qmHost;
 let qmRemoteHost;
+let alertsPushUrl;
 try {
   port = integerSetting(process.env.PORT, { name: 'PORT', fallback: 8787, min: 1, max: 65535 });
   sessionTtlHours = numberSetting(process.env.SESSION_TTL_HOURS, {
@@ -42,6 +43,11 @@ try {
   });
   qmHost = canonicalHost(process.env.QM_HOST, { name: 'QM_HOST' });
   qmRemoteHost = canonicalHost(process.env.QM_REMOTE_HOST, { name: 'QM_REMOTE_HOST', required: false });
+  const pushUrl = new URL(process.env.ALERTS_PUSH_URL || 'https://exp.host/--/api/v2/push/send');
+  if (pushUrl.protocol !== 'https:' || pushUrl.username || pushUrl.password || pushUrl.hash) {
+    throw new Error('ALERTS_PUSH_URL must be an HTTPS address without credentials or a fragment');
+  }
+  alertsPushUrl = pushUrl.href;
 } catch (error) {
   die(error.message);
 }
@@ -64,6 +70,8 @@ export const config = {
   // Phone-facing addresses for detected services.
   qmHost,
   qmRemoteHost,
+  alertsEnabled: process.env.ALERTS_ENABLED !== 'false',
+  alertsPushUrl,
   qmTitle: process.env.QM_TITLE || 'Home',
   stackDir: process.env.QM_STACK || '/stack',
   dataKey,

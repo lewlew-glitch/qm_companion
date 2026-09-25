@@ -9,6 +9,7 @@ import { digestEquals, digestToken, mintToken, parseToken } from './token-family
 import { hasScope } from './scopes.js';
 import { MAX_DEVICE_NAME } from './schema.js';
 import { ACCESS_TTL_MS, REFRESH_IDLE_MS, fail, now } from './enrolment-registry.js';
+import { ALERTS_STATE_FILE, loadAlertsState, removeAlertsDevice, removeAllAlertsDevices } from '../alerts/store.js';
 
 export const LOOKBACK_WINDOW_MS = 5 * 60 * 1000;
 const ROTATION_ID_RE = /^[A-Za-z0-9_-]{22}$/;
@@ -81,13 +82,27 @@ function bindingRefusal(device) {
   return leafRefusal(device) || originRefusal(device);
 }
 
+export function alertDeviceAllowed(device, at = Date.now()) {
+  return device.revokedAt === null && !familyExpired(device, at) && !bindingRefusal(device);
+}
+
+function clearAlertRegistration(deviceId) {
+  try {
+    if (deviceId === null) removeAllAlertsDevices();
+    else removeAlertsDevice(deviceId);
+  } catch { /* an unreadable alerts file cannot deliver to a revoked pairing */ }
+}
+
 /** Revoke every device family in one transaction after certificate replacement. */
 export function revokeAllDevices() {
   const at = now();
   let revoked = 0;
   let total = 0;
   try {
-    if (!existsSync(MOBILE_STATE_FILE)) return { ok: true, revoked: 0, total: 0 };
+    if (!existsSync(MOBILE_STATE_FILE)) {
+      clearAlertRegistration(null);
+      return { ok: true, revoked: 0, total: 0 };
+    }
     updateMobileState((s) => {
       total = s.devices.length;
       revoked = 0;
@@ -101,6 +116,7 @@ export function revokeAllDevices() {
   } catch (error) {
     return { ok: false, reason: error?.code || error?.message || 'the mobile state could not be written' };
   }
+  clearAlertRegistration(null);
   return { ok: true, revoked, total };
 }
 
@@ -169,6 +185,7 @@ export function refreshTokens(refreshGrant, rotationRequestId) {
         const d = s.devices.find((x) => x.deviceId === lookback.deviceId);
         if (d && d.revokedAt === null) revokeInPlace(d, at, 'expired');
       });
+      clearAlertRegistration(lookback.deviceId);
       return fail('repair_required', 'This device must be paired again.', 401);
     }
     const stale = bindingRefusal(lookback);
@@ -183,6 +200,7 @@ export function refreshTokens(refreshGrant, rotationRequestId) {
       const d = s.devices.find((x) => x.deviceId === lookback.deviceId);
       if (d && d.revokedAt === null) revokeInPlace(d, at, 'reuse');
     });
+    clearAlertRegistration(lookback.deviceId);
     return fail('revoked', 'This device was revoked after a refresh grant was reused. Pair it again.', 401);
   }
   if (!current) return fail('unauthorized', 'That refresh grant is not valid.', 401);
@@ -192,6 +210,7 @@ export function refreshTokens(refreshGrant, rotationRequestId) {
       const d = s.devices.find((x) => x.deviceId === current.deviceId);
       if (d && d.revokedAt === null) revokeInPlace(d, at, 'expired');
     });
+    clearAlertRegistration(current.deviceId);
     return fail('repair_required', 'This device must be paired again.', 401);
   }
   const staleBinding = bindingRefusal(current);
@@ -223,6 +242,10 @@ export function refreshTokens(refreshGrant, rotationRequestId) {
 
 export function listDevices() {
   const at = now();
+  let alerts = new Set();
+  try {
+    if (existsSync(ALERTS_STATE_FILE)) alerts = new Set(loadAlertsState().devices.map((device) => device.deviceId));
+  } catch { /* device controls remain available when alerts need repair */ }
   return loadMobileState().devices.map((d) => ({
     deviceId: d.deviceId,
     deviceName: d.deviceName,
@@ -230,6 +253,7 @@ export function listDevices() {
     createdAt: d.createdAt,
     lastSeenAt: d.lastSeenAt,
     tokenFamilyGeneration: d.tokenFamilyGeneration,
+    alertsOn: alerts.has(d.deviceId),
     refreshAbsoluteDeadlineAt: d.refreshAbsoluteDeadlineAt,
     refreshIdleDeadlineAt: d.refreshIdleDeadlineAt,
     status: d.revokedAt !== null ? `revoked (${d.revokedReason})` : familyExpired(d, at) ? 'expired' : 'active',
@@ -245,6 +269,7 @@ export function revokeDevice(deviceId) {
     found = true;
     if (d.revokedAt === null) revokeInPlace(d, at, 'owner');
   });
+  if (found) clearAlertRegistration(deviceId);
   return found ? { ok: true } : fail('not_found', 'No such device.', 404);
 }
 
@@ -271,5 +296,6 @@ export function forgetDevice(deviceId) {
     s.devices = s.devices.filter((x) => x.deviceId !== deviceId);
     outcome = { ok: true };
   });
+  if (outcome.ok) clearAlertRegistration(deviceId);
   return outcome;
 }

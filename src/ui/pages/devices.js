@@ -1,3 +1,5 @@
+// Paired devices and owner-approved enrolments.
+
 import { escapeHtml } from '../../http.js';
 import { tag, fmtWhen } from '../bits.js';
 import { board, shell } from '../chrome.js';
@@ -81,10 +83,10 @@ function deviceRow(d, csrf, secure) {
   const active = d.status === 'active';
   if (!secure) {
     // The off-profile view is read-only.
-    return `<div class="kv"><span><b style="font-size:12px">${escapeHtml(d.deviceName)}</b><small>${(d.scopes || []).map((s) => escapeHtml(SCOPE_LABEL[s] || s)).join(', ')} · paired ${when(d.createdAt)} · last seen ${when(d.lastSeenAt)}</small></span>
+    return `<div class="kv"><span><b style="font-size:12px">${escapeHtml(d.deviceName)}</b>${d.alertsOn ? ' <small>Alerts on</small>' : ''}<small>${(d.scopes || []).map((s) => escapeHtml(SCOPE_LABEL[s] || s)).join(', ')} · paired ${when(d.createdAt)} · last seen ${when(d.lastSeenAt)}</small></span>
       <span style="display:flex;gap:8px;flex:none;align-items:center">${active ? tag('ok', 'Active', 'check') : tag('', escapeHtml(d.status), 'slash')}</span></div>`;
   }
-  return `<div class="kv"><span><b style="font-size:12px">${escapeHtml(d.deviceName)}</b><small>${(d.scopes || []).map((s) => escapeHtml(SCOPE_LABEL[s] || s)).join(', ')} · paired ${when(d.createdAt)} · last seen ${when(d.lastSeenAt)}</small></span>
+  return `<div class="kv"><span><b style="font-size:12px">${escapeHtml(d.deviceName)}</b>${d.alertsOn ? ' <small>Alerts on</small>' : ''}<small>${(d.scopes || []).map((s) => escapeHtml(SCOPE_LABEL[s] || s)).join(', ')} · paired ${when(d.createdAt)} · last seen ${when(d.lastSeenAt)}</small></span>
     <span style="display:flex;gap:8px;flex:none;align-items:center">
       ${active ? tag('ok', 'Active', 'check') : tag('', escapeHtml(d.status), 'slash')}
       ${active ? `<form method="post" action="/devices/rename" style="display:flex;gap:6px">${csrfField(csrf)}<input type="hidden" name="id" value="${escapeHtml(d.deviceId)}"><input name="name" type="text" value="${escapeHtml(d.deviceName)}" maxlength="64" class="in" style="width:140px"><button class="btn" type="submit">Rename</button></form>
