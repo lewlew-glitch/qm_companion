@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseAlert } from '../src/alerts/parsers.js';
+import { renderTemplate } from '../src/alerts/rules.js';
 
 const SERVARR_CASES = Object.freeze([
   ['Grab', 'grab', 'Downloading', 'started downloading', 'grab'],
@@ -88,7 +89,7 @@ test('servarr exposes all wording fields as strings', () => {
   });
   assert.deepEqual(parsed.fields, {
     name: 'Slow Horses S04E02 · A Stranger Comes to Town', series: 'Slow Horses', movie: '', year: '2022',
-    episode: 'S04E02', episodeTitle: 'A Stranger Comes to Town', season: '4', quality: 'WEBDL-2160p',
+    episode: 'S04E02', episodeTitle: 'A Stranger Comes to Town', season: '4', release: '', quality: 'WEBDL-2160p',
     indexer: 'Example', releaseGroup: 'Group', instance: 'Sonarr UHD', message: 'Imported',
     level: 'notice', type: 'IndexerStatusCheck', newVersion: '4.1', previousVersion: '4.0',
   });
@@ -100,6 +101,89 @@ test('servarr exposes all wording fields as strings', () => {
   assert.equal(pack.fields.episode, '');
   assert.equal(pack.fields.episodeTitle, '');
   assert.deepEqual(pack.data.target, { service: 'sonarr', id: 12 });
+});
+
+test('servarr grabs expose the full release title', () => {
+  for (const kind of ['sonarr', 'radarr']) {
+    const releaseTitle = 'The.Expanse.S02E05.Home.2160p.AMZN.WEB-DL.DDP5.1.H.265-FLUX';
+    const parsed = parseAlert(kind, { eventType: 'Grab', release: { releaseTitle } });
+    assert.equal(parsed.fields.release, releaseTitle);
+    assert.equal(renderTemplate('{release}', parsed.fields), releaseTitle);
+  }
+});
+
+test('servarr imports use the scene name unless a release title is present', () => {
+  const sceneName = 'Show.S01E01.1080p.AMZN.WEB-DL.DDP5.1.H.264-NTb';
+  for (const [kind, body] of [
+    ['sonarr', { episodeFile: { sceneName } }],
+    ['sonarr', { episodeFiles: [{ sceneName }, { sceneName: 'Another release' }] }],
+    ['radarr', { movieFile: { sceneName } }],
+  ]) {
+    const payload = { eventType: 'Download', downloadInfo: { title: 'Download title' }, ...body };
+    assert.equal(parseAlert(kind, payload).fields.release, sceneName);
+    assert.equal(parseAlert(kind, { ...payload, release: { releaseTitle: 'Grabbed release' } }).fields.release, 'Grabbed release');
+  }
+});
+
+test('servarr uses the download title before the imported file path', () => {
+  for (const [kind, fileKey] of [['sonarr', 'episodeFile'], ['radarr', 'movieFile']]) {
+    for (const eventType of ['Download', 'ManualInteractionRequired']) {
+      const parsed = parseAlert(kind, {
+        eventType, downloadInfo: { title: 'Original.Release.Name' },
+        [fileKey]: { relativePath: 'Season 01/Renamed file.mkv', path: '/media/Other file.mkv' },
+      });
+      assert.equal(parsed.fields.release, 'Original.Release.Name');
+    }
+  }
+});
+
+test('servarr falls back to the file basename without its extension', () => {
+  const cases = [
+    [{ relativePath: 'Season 01/Show - S01E01 - Pilot WEBDL-1080p.mkv', path: '/media/Other.mkv' }, 'Show - S01E01 - Pilot WEBDL-1080p'],
+    [{ relativePath: 'Season 01\\Show.S01E01.MP4' }, 'Show.S01E01'],
+    [{ path: '/media/Film (2024)/Film (2024).webm' }, 'Film (2024)'],
+    [{ path: 'C:\\Media\\Film (2024)\\Film (2024).mkv' }, 'Film (2024)'],
+    [{ relativePath: '', path: '/media/Original.Release-Group' }, 'Original.Release-Group'],
+    [{ relativePath: 'Season 01/Show.backup.mkv' }, 'Show.backup'],
+    [{ relativePath: 'Season 01/Show.archive' }, 'Show.archive'],
+  ];
+  for (const [kind, fileKey] of [['sonarr', 'episodeFile'], ['radarr', 'movieFile']]) {
+    for (const [file, expected] of cases) {
+      assert.equal(parseAlert(kind, { eventType: 'Download', [fileKey]: file }).fields.release, expected);
+    }
+  }
+});
+
+test('missing release names render as nothing, including health and update events', () => {
+  for (const kind of ['sonarr', 'radarr']) {
+    for (const eventType of ['Grab', 'Download', 'ManualInteractionRequired', 'Health', 'HealthIssue', 'HealthRestored', 'ApplicationUpdate']) {
+      const parsed = parseAlert(kind, { eventType });
+      assert.equal(parsed.fields.release, '');
+      assert.equal(renderTemplate('{release}', parsed.fields), '');
+      assert.equal(renderTemplate('Ready {release}', parsed.fields), 'Ready');
+    }
+  }
+});
+
+test('release names preserve supplied text and ignore unresolved or inherited values', () => {
+  const supplied = '  Original.Release.Name.mkv  ';
+  for (const body of [
+    { release: { releaseTitle: supplied } },
+    { episodeFile: { sceneName: supplied } },
+    { downloadInfo: { title: supplied } },
+  ]) assert.equal(parseAlert('sonarr', { eventType: 'Download', ...body }).fields.release, supplied);
+  for (const body of [
+    { release: { releaseTitle: '{{release}}' }, episodeFile: { sceneName: 'Scene name' } },
+    { release: Object.create({ releaseTitle: 'Inherited' }), episodeFile: { sceneName: 'Scene name' } },
+  ]) assert.equal(parseAlert('sonarr', { eventType: 'Download', ...body }).fields.release, 'Scene name');
+  for (const episodeFile of [
+    { sceneName: '{{scene}}', relativePath: '{{path}}', path: '/media/File.mkv' },
+    Object.assign(Object.create({ sceneName: 'Inherited', relativePath: 'Inherited.mkv' }), { path: '/media/File.mkv' }),
+  ]) {
+    assert.equal(parseAlert('sonarr', {
+      eventType: 'Download', episodeFile, downloadInfo: Object.create({ title: 'Inherited' }),
+    }).fields.release, 'File');
+  }
 });
 
 test('servarr uses file quality and release group when the release lacks them', () => {

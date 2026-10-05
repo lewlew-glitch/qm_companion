@@ -69,6 +69,13 @@ function servarrName(movie, series, episodes, release, downloadInfo) {
   return field(episodes[0], 'title') || 'A download';
 }
 
+function servarrRelease(release, file, downloadInfo) {
+  const relative = field(file, 'relativePath') || field(file, 'path');
+  const base = relative.split(/[\\/]/).pop() ?? '';
+  return field(release, 'releaseTitle') || field(file, 'sceneName') || field(downloadInfo, 'title')
+    || base.replace(/\.[A-Za-z0-9]{2,4}$/, '');
+}
+
 function servarrTarget(kind, movie, series, episodes) {
   const record = kind === 'radarr' ? movie : series;
   const id = own(record, 'id');
@@ -109,6 +116,7 @@ function parseServarr(kind, body) {
     episodeTitle: episodes.length === 1 ? field(episodes[0], 'title') : '',
     season: episodes.length && number(season) && episodes.every((episode) => own(episode, 'seasonNumber') === season)
       ? String(season) : '',
+    release: servarrRelease(release, file, own(body, 'downloadInfo')),
     quality: field(release, 'quality') || field(own(own(file, 'quality'), 'quality'), 'name'),
     indexer: field(release, 'indexer').trim(),
     releaseGroup: field(release, 'releaseGroup') || field(file, 'releaseGroup'),
