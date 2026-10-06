@@ -58,6 +58,37 @@ test('chunked responses are stopped at the byte limit before full buffering', as
   assert.equal(cancelled, true);
 });
 
+test('a truncating read keeps the first bytes and stops the stream', async () => {
+  let cancelled = false;
+  const body = new ReadableStream({
+    pull(controller) {
+      controller.enqueue(new Uint8Array(700).fill(0x61));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  const fetchImpl = async () => new Response(body, { status: 200 });
+
+  const { text, truncated } = await fetchTextBounded('http://service.invalid', {}, { maxBytes: 1024, fetchImpl, overflow: 'truncate' });
+  assert.equal(text, 'a'.repeat(1024));
+  assert.equal(truncated, true);
+  assert.equal(cancelled, true);
+});
+
+test('a declared length over the limit is refused by default and cut short when truncating', async () => {
+  const page = 'b'.repeat(4096);
+  const fetchImpl = async () => new Response(page, { status: 200, headers: { 'content-length': String(page.length) } });
+
+  await assert.rejects(fetchTextBounded('http://service.invalid', {}, { maxBytes: 1024, fetchImpl }), /too large/);
+  const cut = await fetchTextBounded('http://service.invalid', {}, { maxBytes: 1024, fetchImpl, overflow: 'truncate' });
+  assert.equal(cut.text, 'b'.repeat(1024));
+  assert.equal(cut.truncated, true);
+  const whole = await fetchTextBounded('http://service.invalid', {}, { maxBytes: 8192, fetchImpl, overflow: 'truncate' });
+  assert.equal(whole.text, page);
+  assert.equal(whole.truncated, false);
+});
+
 test('the deadline remains active while a response body is stalled', async () => {
   const body = new ReadableStream({ start() {} });
   const fetchImpl = async () => new Response(body, { status: 200 });

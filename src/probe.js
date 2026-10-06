@@ -15,7 +15,8 @@ const FINGERPRINTS = [
   { kind: 'bazarr', port: 6767, path: '/', sig: /bazarr/i },
   { kind: 'jellyfin', port: 8096, path: '/System/Info/Public', sig: /jellyfin/i },
   { kind: 'jellyseerr', port: 5055, path: '/api/v1/status', sig: /version|commitTag|restartRequired/i },
-  { kind: 'sabnzbd', port: 8080, path: '/', sig: /sabnzbd/i },
+  // SABnzbd answers its version without an API key; its web page runs to about 600 KB.
+  { kind: 'sabnzbd', port: 8080, path: '/api?mode=version&output=json', sig: /sabnzbd/i },
   { kind: 'qbittorrent', port: 8080, path: '/', sig: /qbittorrent/i },
   { kind: 'tautulli', port: 8181, path: '/', sig: /tautulli/i },
   { kind: 'homeassistant', port: 8123, path: '/', sig: /home ?assistant/i },
@@ -44,6 +45,15 @@ export function probeScheme(fp) {
   return fp.scheme === 'http' || fp.scheme === 'https' ? fp.scheme : schemeFor(fp.kind);
 }
 
+// SABnzbd's keyless version answer is exactly {"version":"<number>"}.
+function isSabnzbdVersion(text) {
+  try {
+    const info = JSON.parse(text);
+    return !!info && typeof info === 'object' && !Array.isArray(info) && Object.keys(info).length === 1
+      && typeof info.version === 'string' && /^\d+\.\d+/.test(info.version);
+  } catch { return false; }
+}
+
 function fingerprintMatches(fp, text, server = '') {
   if (fp.kind === 'peanut') {
     // The public-port scan has no Docker identity to rely on. A mention in HTML or a proxy
@@ -53,14 +63,19 @@ function fingerprintMatches(fp, text, server = '') {
       return !!info && typeof info === 'object' && !Array.isArray(info) && info.name === 'peanut';
     } catch { return false; }
   }
+  // The name check still recognises SABnzbd's own login and refusal pages.
+  if (fp.kind === 'sabnzbd' && isSabnzbdVersion(text)) return true;
   return fp.sig.test(text) || fp.sig.test(server);
 }
 
-// Follow at most one same-origin redirect.
+// A probe reads at most this much: enough to recognise a service. A longer page is cut short, not
+// refused, because any answer proves the port is up.
 const PROBE_MAX_BYTES = 256 * 1024;
 
+// Follow at most one same-origin redirect.
 async function probeHttpText(url, timeoutMs) {
-  const first = await fetchTextBounded(url, {}, { timeoutMs, maxBytes: PROBE_MAX_BYTES, redirect: 'manual' });
+  const read = { timeoutMs, maxBytes: PROBE_MAX_BYTES, redirect: 'manual', overflow: 'truncate' };
+  const first = await fetchTextBounded(url, {}, read);
   const status = first.response.status;
   if (status < 300 || status >= 400) return first;
   const location = first.response.headers.get('location');
@@ -72,7 +87,7 @@ async function probeHttpText(url, timeoutMs) {
     return first; // an unparseable Location is still proof something answered
   }
   if (next.origin !== new URL(url).origin) return first;
-  return fetchTextBounded(next.href, {}, { timeoutMs, maxBytes: PROBE_MAX_BYTES, redirect: 'manual' });
+  return fetchTextBounded(next.href, {}, read);
 }
 
 export async function probeOne(host, fp, timeoutMs) {
@@ -82,7 +97,7 @@ export async function probeOne(host, fp, timeoutMs) {
     let text;
     let server;
     if (scheme === 'https') {
-      const answer = await httpsTextBounded(url + fp.path, { timeoutMs, maxBytes: 256 * 1024 });
+      const answer = await httpsTextBounded(url + fp.path, { timeoutMs, maxBytes: PROBE_MAX_BYTES });
       text = answer.text;
       server = answer.server;
     } else {
