@@ -40,6 +40,7 @@ function compose(name) {
 
 const profiles = [
   { file: 'docker-compose.example.yml', post: '0', exec: '0', maximum: 'read' },
+  { file: 'docker-compose.published.yml', post: '0', exec: '0', maximum: 'read' },
   { file: 'docker-compose.management.yml', post: '1', exec: '0', maximum: 'manage' },
   { file: 'docker-compose.shell.yml', post: '1', exec: '1', maximum: 'shell' },
 ];

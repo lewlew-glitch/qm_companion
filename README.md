@@ -4,6 +4,8 @@ Quartermaster Companion is a self-hosted web application for the Quartermaster p
 
 The standard setup transfer does not route app traffic through Companion. After setup, Quartermaster connects directly to the local and away addresses saved for each service. An optional mobile profile adds a persistent, certificate-pinned HTTPS connection for Companion's Docker overview.
 
+Run Companion on the Docker host that runs your services. One install reads one Docker engine and the config files mounted into it. Services on other hosts can be added directly in Quartermaster.
+
 ## Features
 
 - Discovers multiple service instances from approved config files and Docker.
@@ -29,16 +31,17 @@ Community Apps uses separate `qm-socket-proxy` and `qm-companion` entries so the
 
 ## Quick install
 
-Clone the complete repository and edit `docker-compose.example.yml` before starting it:
+Create a folder and download `docker-compose.published.yml`, then edit it before starting:
 
 ```sh
-git clone https://github.com/lewlew-glitch/qm_companion.git
+mkdir -p qm_companion
 cd qm_companion
+curl -fsSLO https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docker-compose.published.yml
 ```
 
 Set the published address for port 8787, set `QM_HOST`, and replace the example service config paths with paths from this server. Mount individual config files only, not an app-data parent directory.
 
-For a new installation, create separate secrets in the gitignored `.env` file. Existing installations must keep their current `.env` and `SECRET_KEY`; skip this block during an upgrade.
+For a new installation, create separate secrets in the `.env` file. Existing installations must keep their current `.env` and `SECRET_KEY`; skip this block during an upgrade.
 
 ```sh
 if [ -e .env ]; then
@@ -64,24 +67,45 @@ Check the values without printing them:
   test "${#SECRET_KEY}" -eq 64 &&
     test "${#QM_PROXY_KEY}" -ge 32 &&
     test "$SECRET_KEY" != "$QM_PROXY_KEY"
-) && docker compose -f docker-compose.example.yml config --quiet
+) && docker compose -f docker-compose.published.yml config --quiet
 ```
+
+Both images use `latest` by default. To pin a release, add `QM_COMPANION_TAG=0.1.9` to `.env`; it applies to Companion and the socket proxy.
 
 Start the recommended read-only profile:
 
 ```sh
-docker compose -f docker-compose.example.yml up -d --build
+docker compose -f docker-compose.published.yml up -d
 ```
 
 Open `http://<server-address>:8787` and claim the owner account. If `SETUP_TOKEN` is not configured, the first-run token is written to the Companion log while the installation has no owner:
 
 ```sh
-docker compose -f docker-compose.example.yml logs companion
+docker compose -f docker-compose.published.yml logs companion
 ```
 
 Use a trusted private network for plain HTTP. Put Companion behind a trusted HTTPS reverse proxy before exposing the panel beyond that network.
 
 Saltbox installations can use the supplied Traefik overlay; see [Saltbox](docs/saltbox.md).
+
+The guides in `docs/` and the panel use `docker-compose.example.yml` with `--build`. With published images, use `docker-compose.published.yml` and leave out `--build`, and download any overlay you add into the same folder.
+
+### Build from source
+
+Clone the complete repository:
+
+```sh
+git clone https://github.com/lewlew-glitch/qm_companion.git
+cd qm_companion
+```
+
+Edit `docker-compose.example.yml` with the same addresses and config paths, and create `.env` as above. Check the configuration and start it:
+
+```sh
+docker compose -f docker-compose.example.yml config --quiet
+docker compose -f docker-compose.example.yml up -d --build
+docker compose -f docker-compose.example.yml logs companion
+```
 
 ## Updates
 
@@ -97,6 +121,8 @@ The Compose profile sets the maximum Docker access available to Companion:
 | Read only | `docker compose -f docker-compose.example.yml up -d --build` | Discovery, status, and logs |
 | Management | `docker compose -f docker-compose.example.yml -f docker-compose.management.yml up -d --build` | Docker writes without container exec |
 | Management + shell | `docker compose -f docker-compose.example.yml -f docker-compose.shell.yml up -d --build` | Docker writes and container exec |
+
+The guides in `docs/` and the panel use `docker-compose.example.yml` with `--build`. With published images, use `docker-compose.published.yml` and leave out `--build`, and download any overlay you add into the same folder.
 
 Every explicit profile starts with the active mode set to Read only. The owner can raise it from **Docker access** up to the installed maximum. Management and Management + shell grant broad Docker authority to the Companion process even while the active application mode is lower. Use the Read only profile when Docker writes are not required.
 

@@ -123,11 +123,13 @@ test('the proxy image gates on the key above every allow rule', () => {
 });
 
 test('the shipped compose demands the key on both sides and ships no literal', () => {
-  const example = readFileSync(join(projectRoot, 'docker-compose.example.yml'), 'utf8');
-  const required = [...example.matchAll(/QM_PROXY_KEY: "\$\{QM_PROXY_KEY:\?/g)];
-  assert.equal(required.length, 2, 'the proxy demands it and Companion supplies it');
-  assert.doesNotMatch(example, /QM_PROXY_KEY: "[0-9a-fA-F]{16,}"/, 'no literal key in the file');
-  assert.match(example, /internal.*network still gets a gateway address on the Docker host/s);
+  for (const file of ['docker-compose.example.yml', 'docker-compose.published.yml']) {
+    const example = readFileSync(join(projectRoot, file), 'utf8');
+    const required = [...example.matchAll(/QM_PROXY_KEY: "\$\{QM_PROXY_KEY:\?/g)];
+    assert.equal(required.length, 2, 'the proxy demands it and Companion supplies it');
+    assert.doesNotMatch(example, /QM_PROXY_KEY: "[0-9a-fA-F]{16,}"/, 'no literal key in the file');
+    assert.match(example, /internal.*network still gets a gateway address on the Docker host/s);
+  }
 });
 
 
@@ -322,7 +324,11 @@ test('public Companion recreate commands rebuild the local images', () => {
     const guide = readFileSync(join(projectRoot, file), 'utf8');
     for (const line of guide.split('\n')) {
       if (line.includes('docker compose') && line.includes(' up -d')) {
-        assert.ok(line.includes('--build'), `${file} exposes a recreate without --build: ${line}`);
+        if (line.includes('docker-compose.published.yml')) {
+          assert.ok(!line.includes('--build'), `${file} exposes a published-image recreate with --build: ${line}`);
+        } else {
+          assert.ok(line.includes('--build'), `${file} exposes a recreate without --build: ${line}`);
+        }
       }
     }
   }

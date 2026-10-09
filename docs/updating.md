@@ -11,6 +11,13 @@ Run commands from the directory containing your installation's Compose file. Kee
 same file names, overrides, project name and environment file that you used to start it.
 Keep your existing data volume and `SECRET_KEY`.
 
+For an installation using `docker-compose.published.yml`:
+
+```sh
+docker compose -f docker-compose.published.yml pull companion socket-proxy
+docker compose -f docker-compose.published.yml up -d --no-build companion socket-proxy
+```
+
 For an installation using the published images and the default Compose file name:
 
 ```sh

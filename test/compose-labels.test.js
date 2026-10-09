@@ -32,6 +32,7 @@ function assertProtected(file) {
 
 test('the example compose file protects both control-plane services', () => {
   assertProtected(join(projectRoot, 'docker-compose.example.yml'));
+  assertProtected(join(projectRoot, 'docker-compose.published.yml'));
 });
 
 test('the NAS override file protects both control-plane services when present', (t) => {
