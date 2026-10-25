@@ -70,7 +70,7 @@ Check the values without printing them:
 ) && docker compose -f docker-compose.published.yml config --quiet
 ```
 
-Both images use `latest` by default. To pin a release, add `QM_COMPANION_TAG=0.1.9` to `.env`; it applies to Companion and the socket proxy.
+Both images use `latest` by default. To pin a release, add `QM_COMPANION_TAG=0.1.10` to `.env`; it applies to Companion and the socket proxy.
 
 Start the recommended read-only profile:
 
@@ -172,7 +172,7 @@ Read [Security model](docs/security-model.md) before exposing the panel or enabl
 
 ## Development and verification
 
-Node.js 24 or newer is required.
+Node.js 24.22.1 or newer is required.
 
 ```sh
 npm ci
