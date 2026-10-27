@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Read-only mobile-state diagnostic.
 // Exit codes: 0 healthy, 1 invalid, 2 not provisioned.
+// Reads as the node user when docker exec runs this as root in the all-in-one image.
+import '../all-in-one/exec-user.js';
 import { X509Certificate, createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';

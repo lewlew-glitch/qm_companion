@@ -14,6 +14,8 @@ docker network create qm-companion
 
 If that name already exists, check that it is a bridge network intended for these two containers. The templates select `qm-companion`; choose **Custom: qm-companion** in each container's Network Type field if Unraid has not selected it automatically. Both containers must join the same network. Do not select the default `bridge`, `host`, or a direct LAN network such as `br0`.
 
+Keep the template's `qm-companion` network: a `br0` address that clashes with another device can knock that device off the network.
+
 For a new installation, generate two different keys:
 
 ```sh

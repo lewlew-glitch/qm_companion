@@ -5,6 +5,9 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 
 import { matchImage } from './kinds.js';
 import { isProtectedContainer } from './protect.js';
+import { createContainerStatsReader } from './docker-stats.js';
+import { createContainerStatReader } from './docker-container-stat.js';
+import { createDiskUsageCache } from './docker-disk.js';
 
 const SOCK = '/var/run/docker.sock';
 // Prefer an authenticated socket proxy configured through DOCKER_HOST.
@@ -305,58 +308,17 @@ export async function listContainers() {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Cache inspect-only restart counts with the lazy stats path.
-let restartCache = { at: 0, map: new Map() };
-async function restartCounts(ids) {
-  if (Date.now() - restartCache.at < 30_000) return restartCache.map;
-  const map = new Map();
-  await Promise.all(ids.map(async (id) => {
-    const { json } = await req('GET', `/containers/${id}/json`);
-    if (json && typeof json.RestartCount === 'number') map.set(id, json.RestartCount);
-  }));
-  restartCache = { at: Date.now(), map };
-  return map;
-}
+const readContainerStats = createContainerStatsReader({ listContainers, request: req });
+const diskUsage = createDiskUsageCache({ request: req });
 
-// Fetch resource samples lazily for running containers.
+// Reuse the same resource samples as the dashboard.
 export async function allContainerStats() {
-  const list = await listContainers();
-  if (!list) return null;
-  const running = list.filter((x) => x.state === 'running');
-  const [counts, stats] = await Promise.all([
-    restartCounts(running.map((c) => c.id)),
-    Promise.all(running.map(async (c) => {
-      const { json } = await req('GET', `/containers/${c.id}/stats?stream=false`);
-      if (!json || !json.cpu_stats) return null;
-      // Retain bytes and limit alongside the calculated percentage.
-      const memCache = (json.memory_stats && json.memory_stats.stats && (json.memory_stats.stats.inactive_file || 0)) || 0;
-      const memUsed = Math.max(0, ((json.memory_stats && json.memory_stats.usage) || 0) - memCache);
-      const memLimit = (json.memory_stats && json.memory_stats.limit) || 0;
-      return { id: c.id, cpu: cpuPct(json), mem: memPct(json), memUsed, memLimit, net: netIO(json), disk: diskIO(json) };
-    })),
-  ]);
-  const available = stats.filter(Boolean);
+  const snapshot = await readContainerStats();
+  if (!snapshot) return null;
   return {
-    stats: available.map((s) => ({ ...s, restarts: counts.has(s.id) ? counts.get(s.id) : null })),
-    unavailable: running.length - available.length,
+    stats: snapshot.stats.map(({ name, kind, ...sample }) => sample),
+    unavailable: snapshot.unavailable,
   };
-}
-
-// Sum cumulative network and block I/O counters.
-function netIO(s) {
-  const n = s.networks || {};
-  let rx = 0, tx = 0;
-  for (const k in n) { rx += n[k].rx_bytes || 0; tx += n[k].tx_bytes || 0; }
-  return { rx, tx };
-}
-function diskIO(s) {
-  const io = (s.blkio_stats && s.blkio_stats.io_service_bytes_recursive) || [];
-  let read = 0, write = 0;
-  for (const e of io) {
-    if (/^read$/i.test(e.op)) read += e.value || 0;
-    else if (/^write$/i.test(e.op)) write += e.value || 0;
-  }
-  return { read, write };
 }
 
 // Docker prefixes multiplexed stdout and stderr frames with an 8-byte header unless the container has a TTY.
@@ -472,37 +434,12 @@ export async function dockerCounts() {
   return c;
 }
 
-// Calculate CPU and memory use from a non-streaming Docker stats sample.
-function cpuPct(s) {
-  const d = s.cpu_stats.cpu_usage.total_usage - s.precpu_stats.cpu_usage.total_usage;
-  const sys = s.cpu_stats.system_cpu_usage - (s.precpu_stats.system_cpu_usage || 0);
-  const cpus = s.cpu_stats.online_cpus || (s.cpu_stats.cpu_usage.percpu_usage || []).length || 1;
-  return sys > 0 && d > 0 ? (d / sys) * cpus * 100 : 0;
-}
-function memPct(s) {
-  const cache = (s.memory_stats.stats && (s.memory_stats.stats.inactive_file || 0)) || 0;
-  const used = (s.memory_stats.usage || 0) - cache;
-  const limit = s.memory_stats.limit || 0;
-  return limit ? (used / limit) * 100 : 0;
-}
-
-async function oneStat(c) {
-  const { json } = await req('GET', `/containers/${c.id}/stats?stream=false`);
-  if (!json || !json.cpu_stats) return null;
-  const cache = (json.memory_stats && json.memory_stats.stats && (json.memory_stats.stats.inactive_file || 0)) || 0;
-  const memUsed = Math.max(0, ((json.memory_stats && json.memory_stats.usage) || 0) - cache);
-  return { name: c.name, kind: c.kind, cpu: cpuPct(json), memUsed };
-}
+const readContainerStat = createContainerStatReader({ request: req });
 
 // Collect one container's live resource sample.
 export async function containerStat(id) {
-  if (!dockerAvailable() || !/^[a-f0-9]{6,64}$/i.test(id)) return null;
-  const { json } = await req('GET', `/containers/${id}/stats?stream=false`);
-  if (!json || !json.cpu_stats) return null;
-  const cache = (json.memory_stats && json.memory_stats.stats && (json.memory_stats.stats.inactive_file || 0)) || 0;
-  const memUsed = Math.max(0, ((json.memory_stats && json.memory_stats.usage) || 0) - cache);
-  const memLimit = (json.memory_stats && json.memory_stats.limit) || 0;
-  return { cpu: cpuPct(json), memUsed, memLimit };
+  if (!dockerAvailable()) return null;
+  return readContainerStat(id);
 }
 
 // Cache host facts used by the page header.
@@ -644,38 +581,23 @@ export async function dockerInfo() {
 
 // Aggregate per-container stats and Docker disk usage for the dashboard.
 export async function dockerStats() {
-  const list = await listContainers();
-  if (!list) return null;
-  const running = list.filter((x) => x.state === 'running');
-  const [stats, df, info] = await Promise.all([
-    Promise.all(running.map(oneStat)).then((s) => s.filter(Boolean)),
-    req('GET', '/system/df'),
-    infoCache && Number(infoCache.memTotal) > 0 ? Promise.resolve(infoCache) : dockerInfo(),
-  ]);
-  if ((!infoCache || !(Number(infoCache.memTotal) > 0)) && info) infoCache = info;
-  const metricsUnavailable = running.length - stats.length;
-  const cpu = running.length && stats.length === 0 ? null : stats.reduce((n, s) => n + s.cpu, 0);
+  const snapshot = await readContainerStats();
+  if (!snapshot) return null;
+  const info = infoCache;
+  const { stats, running, unavailable: metricsUnavailable } = snapshot;
+  const measuredCpu = stats.filter((sample) => sample.cpu !== null);
+  const cpu = running && !measuredCpu.length
+    ? null : measuredCpu.reduce((total, sample) => total + sample.cpu, 0);
+  const cpuUnavailable = running - measuredCpu.length;
+  const cpuPartial = measuredCpu.length > 0 && cpuUnavailable > 0;
   const hostMem = Number(info && info.memTotal) > 0 ? Number(info.memTotal) : 0;
-  const mem = hostMem ? stats.reduce((n, s) => n + s.memUsed, 0) / hostMem * 100 : null;
+  const mem = hostMem && (!running || stats.length) ? stats.reduce((n, s) => n + s.memUsed, 0) / hostMem * 100 : null;
   const top = stats
-    .map((s) => ({ ...s, mem: hostMem ? s.memUsed / hostMem * 100 : null }))
-    .sort((a, b) => b.cpu - a.cpu)
+    .map((s) => ({ name: s.name, kind: s.kind, cpu: s.cpu, memUsed: s.memUsed, mem: hostMem ? s.memUsed / hostMem * 100 : null }))
+    .sort((a, b) => (b.cpu ?? -1) - (a.cpu ?? -1))
     .slice(0, 6);
-
-  let disk = null;
-  if (df.status >= 200 && df.status < 300 && df.json && typeof df.json === 'object') {
-    const d = df.json;
-    const sz = (arr, key) => (Array.isArray(arr) ? arr : []).reduce((n, x) => n + (x[key] || 0), 0);
-    disk = {
-      // LayersSize avoids double-counting shared image layers.
-      images: Number.isFinite(d.LayersSize) ? d.LayersSize : sz(d.Images, 'Size'),
-      containers: sz(d.Containers, 'SizeRw'),
-      volumes: (Array.isArray(d.Volumes) ? d.Volumes : []).reduce((n, x) => n + ((x.UsageData && x.UsageData.Size) || 0), 0),
-      build: sz(d.BuildCache, 'Size'),
-    };
-    disk.total = disk.images + disk.containers + disk.volumes + disk.build;
-  }
-  return { cpu, mem, top, disk, metricsUnavailable, cores: Number(info && info.ncpu) > 0 ? Number(info.ncpu) : null, temps: hostTemps() };
+  const disk = cachedSystemDf()?.disk || null;
+  return { cpu, cpuPartial, cpuUnavailable, mem, top, disk, metricsUnavailable, cores: Number(info && info.ncpu) > 0 ? Number(info.ncpu) : null, temps: hostTemps() };
 }
 
 // Expand image-list tags without additional Docker requests.
@@ -745,20 +667,16 @@ export async function listVolumes() {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Read volume usage from /system/df on demand.
-export async function systemDf() {
+// Return cached storage immediately and refresh stale data in the background.
+export function cachedSystemDf() {
   if (!dockerAvailable()) return null;
-  const { status, json } = await req('GET', '/system/df');
-  if (status === 403) return 'blocked';
-  if (status < 200 || status >= 300 || !json || typeof json !== 'object') return null;
-  const volumes = {};
-  for (const v of Array.isArray(json.Volumes) ? json.Volumes : []) {
-    if (!v || typeof v.Name !== 'string' || !v.Name) continue;
-    const usage = v.UsageData || {};
-    // Preserve Docker's -1 sentinel for unmeasured size.
-    volumes[v.Name] = { size: typeof usage.Size === 'number' ? usage.Size : -1 };
-  }
-  return { volumes };
+  return diskUsage.read();
+}
+
+// Readers and explicit owner refreshes share one filesystem walk.
+export async function systemDf({ refresh = false } = {}) {
+  if (!dockerAvailable()) return null;
+  return diskUsage.refresh(refresh);
 }
 
 export async function removeVolume(name) {

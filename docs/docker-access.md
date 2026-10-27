@@ -30,6 +30,8 @@ The shipped profiles place a socket proxy between Companion and the Docker daemo
 
 With `POST=1`, the proxy's resource flags do not reliably limit writes to individual lifecycle operations. Management and Management + shell must be treated as host-root-equivalent Docker access. Selecting Read only in the panel blocks application routes, but it does not remove the proxy permissions already granted to the Companion process.
 
+`docker-compose.all-in-one.yml` runs the same proxy configuration inside Companion's container. The proxy listens on `127.0.0.1` with a key generated at each start, runs as root, and is the only process there that can open the Docker socket. Companion runs as the `node` user, and the container refuses to start when the socket's permissions would let that user connect. `DOCKER_ACCESS_MAX` sets the proxy's `POST` and `EXEC` to match the table above. This separation is between users in one container rather than between containers, so a local privilege escalation inside the container reaches the socket.
+
 A raw Docker socket mount has no daemon-level read-only restriction. Deployments that set `DOCKER_HOST` to a socket rely only on Companion's application checks and give a compromised process full daemon access.
 
 Docker reads are also privileged. Container inspection can reveal environment values, labels, mounts, network topology, and host layout. Avoid container environment variables for credentials where practical, and enable only the proxy resource sections needed by the installation.
@@ -75,7 +77,8 @@ Registry update checks are read-only but contact the relevant container registry
 | `BIND_ADDRESS` | no | Panel listen address. The default is `127.0.0.1`; the Compose example uses `0.0.0.0` inside the container. |
 | `PORT` | no | Panel port. The default is `8787`. |
 | `QM_STACK` | no | Root containing one directory per service instance and its approved config file. The default is `/stack` in Compose. |
-| `DOCKER_HOST` | no | Docker transport. The shipped profiles use `tcp://socket-proxy:2375`. |
+| `DOCKER_HOST` | no | Docker transport. The shipped profiles use `tcp://socket-proxy:2375`. The all-in-one image sets it to its own proxy. |
+| `PROXY_PORT` | no | All-in-one image only. Loopback port for the proxy inside the container. The default is `2375`. |
 | `DOCKER_ACCESS_MAX` | no | Installed maximum: `read`, `manage`, or `shell`. Use the matching Compose profile. |
 | `DOCKER_DEPLOY_BIND_ROOTS` | no | Colon- or comma-separated host roots allowed for Marketplace bind mounts. Empty permits named volumes only. |
 | `DOCKER_DEPLOY_BIND_ADDRESS` | no | Host address used by Marketplace port mappings. It defaults to a literal IPv4 `QM_HOST`, otherwise loopback. |

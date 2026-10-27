@@ -18,6 +18,13 @@ docker compose -f docker-compose.published.yml pull companion socket-proxy
 docker compose -f docker-compose.published.yml up -d --no-build companion socket-proxy
 ```
 
+For an installation using `docker-compose.all-in-one.yml`:
+
+```sh
+docker compose -f docker-compose.all-in-one.yml pull companion
+docker compose -f docker-compose.all-in-one.yml up -d --no-build companion
+```
+
 For an installation using the published images and the default Compose file name:
 
 ```sh

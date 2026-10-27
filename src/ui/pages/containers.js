@@ -244,12 +244,22 @@ export function containersPage(containers, control, csrf, shellAccess = false) {
         function areaPath(vals, w, hgt, max, cap) {
           if (!vals.length) return '';
           var step = w / Math.max(cap - 1, 1);
-          var pts = vals.map(function (v, i) {
+          var paths = [], pts = [], startX = '', endX = '';
+          function finish() {
+            if (!pts.length) return;
+            paths.push('M' + startX + ',' + hgt + ' L' + pts.join(' L') + ' L' + endX + ',' + hgt + ' Z');
+            pts = [];
+          }
+          vals.forEach(function (v, i) {
+            if (v == null) { finish(); return; }
+            var x = (i * step).toFixed(1);
+            if (!pts.length) startX = x;
+            endX = x;
             var y = hgt - 2 - Math.min(1, v / max) * (hgt - 6);
-            return (i * step).toFixed(1) + ',' + y.toFixed(1);
+            pts.push(x + ',' + y.toFixed(1));
           });
-          var endX = ((vals.length - 1) * step).toFixed(1);
-          return 'M0,' + hgt + ' L' + pts.join(' L') + ' L' + endX + ',' + hgt + ' Z';
+          finish();
+          return paths.join(' ');
         }
         var open = null;
         // Containers without stats history receive an explicit state instead of stale values.
@@ -260,7 +270,8 @@ export function containersPage(containers, control, csrf, shellAccess = false) {
           document.getElementById('d-cpu-path').setAttribute('d', areaPath(h.cpu, 140, 44, Math.max(10, Math.max.apply(null, h.cpu.concat([1])) * 1.2), 60));
           document.getElementById('d-mem-path').setAttribute('d', areaPath(h.mem, 140, 44, 100, 60));
           if (h.cpu.length) {
-            document.getElementById('d-cpu').textContent = h.cpu[h.cpu.length - 1].toFixed(1) + '%';
+            var cpu = h.cpu[h.cpu.length - 1];
+            document.getElementById('d-cpu').textContent = cpu == null ? '-' : cpu.toFixed(1) + '%';
             document.getElementById('d-mem').textContent = h.mem[h.mem.length - 1].toFixed(1) + '%';
             return;
           }
@@ -270,6 +281,7 @@ export function containersPage(containers, control, csrf, shellAccess = false) {
           document.getElementById('d-mem').textContent = word;
         }
         function poll() {
+          if (document.hidden) return;
           fetch('/api/containers/stats').then(function(r){if(!r.ok) throw new Error('stats'); return r.json();}).then(function(d){
             var m = {}; (d.stats || []).forEach(function(s){ m[s.id] = s; push(s.id, s.cpu, s.mem); });
             var note=document.getElementById('cnote');
@@ -286,12 +298,12 @@ export function containersPage(containers, control, csrf, shellAccess = false) {
                 if (r.dataset.state === 'running') r.querySelectorAll('.cpu,.mem,.rst,.net,.disk').forEach(function(el){ if(el.textContent==='·') el.textContent='-'; });
                 return;
               }
-              r.dataset.cpu = s.cpu; r.dataset.mem = s.mem;
+              r.dataset.cpu = s.cpu == null ? '' : s.cpu; r.dataset.mem = s.mem;
               if (s.restarts != null) r.dataset.restarts = s.restarts;
             });
             document.querySelectorAll('.cpu[data-cid]').forEach(function(el){
               var s = m[el.dataset.cid]; if (!s) return;
-              setTxt(el, s.cpu.toFixed(1) + '%');
+              setTxt(el, s.cpu == null ? '-' : s.cpu.toFixed(1) + '%');
               // Mark high CPU usage.
               el.classList.toggle('hot', s.cpu >= 80);
             });
@@ -319,6 +331,7 @@ export function containersPage(containers, control, csrf, shellAccess = false) {
           });
         }
         poll(); setInterval(poll, 5000);
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
 
         var panel = document.getElementById('detail'), table = document.querySelector('.ctable2'), detailOpener = null;
         function sel(name) { return '.t-ctr[data-name="' + String(name).replace(/[^a-zA-Z0-9_.-]/g, '') + '"]'; }

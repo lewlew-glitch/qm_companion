@@ -75,6 +75,10 @@ Quartermaster's derived image modifies the upstream HAProxy template. It adds a 
 authentication gate, gives the Docker event backend a finite idle timeout, rejects `HEAD`, and
 blocks container archive and export routes before the upstream allow rules.
 
+`Dockerfile.all-in-one` copies the same modified template into the Companion image and runs it with
+Alpine's HAProxy package. It also copies the licence text to
+`/usr/share/licenses/qm-companion/APACHE-2.0.txt`.
+
 ## JavaScript packages
 
 Runtime packages installed from `package-lock.json` retain their own copyright notices and licences.

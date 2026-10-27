@@ -1,6 +1,6 @@
 // Allow-listed Observer DTOs without sensitive Docker configuration.
 
-import { containerStat, dockerAvailable, dockerCounts, hostProcMetrics, hostTemps, inspectContainer, listContainers, listImages, listStacks, recentEvents, systemDf } from '../docker.js';
+import { cachedSystemDf, containerStat, dockerAvailable, dockerCounts, hostProcMetrics, hostTemps, inspectContainer, listContainers, listImages, listStacks, recentEvents } from '../docker.js';
 import { runUpdateCheck, updatesState } from '../updates.js';
 
 export const MAX_EVENTS = 200;
@@ -44,7 +44,8 @@ function hostMetrics() {
 
 export async function summaryDto() {
   if (!dockerAvailable()) return { v: 1, docker: 'unavailable' };
-  const [counts, stacks, df] = await Promise.all([dockerCounts(), listStacks(), systemDf().catch(() => null)]);
+  const [counts, stacks] = await Promise.all([dockerCounts(), listStacks()]);
+  const df = cachedSystemDf();
   const metrics = hostMetrics();
   // Distinguish daemon failure from an empty result.
   if (!counts) return { v: 1, docker: 'unavailable' };
@@ -141,7 +142,7 @@ export async function containerDetailDto(shortIdWanted, statFn = containerStat, 
     if (Number.isFinite(created) && created > 0) out.createdAt = created;
   }
   if (stat) {
-    out.cpuPct = Math.max(0, stat.cpu);
+    if (Number.isFinite(stat.cpu)) out.cpuPct = Math.max(0, stat.cpu);
     out.memBytes = stat.memUsed;
     if (Number(stat.memLimit) > 0) out.memLimitBytes = stat.memLimit;
   }

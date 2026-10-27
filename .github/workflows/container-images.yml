@@ -56,6 +56,11 @@ jobs:
             dockerfile: ./Dockerfile.socket-proxy
             title: Quartermaster Companion Socket Proxy
             description: Restricted Docker socket proxy for Quartermaster Companion
+          - image: ghcr.io/lewlew-glitch/qm-companion-all-in-one
+            cache: qm-companion-all-in-one
+            dockerfile: ./Dockerfile.all-in-one
+            title: Quartermaster Companion All-in-one
+            description: Quartermaster Companion and its Docker socket proxy in one container
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

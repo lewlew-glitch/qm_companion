@@ -316,24 +316,54 @@ export function appRuntime() {
       });
     };
 
-    // Fall back to polling after repeated stream failures; always:true keeps polling active.
+    // Use polling only while streaming is unavailable, and pause both in hidden tabs.
     window.qmLive = function (o) {
       var topics = o.topics || [];
-      var fails = 0, timer = null, es = null;
-      function poll() {
-        if (timer || !o.fallbackPoll) return;
-        o.fallbackPoll();
-        timer = setInterval(o.fallbackPoll, o.fallbackMs || 5000);
+      var fails = 0, timer = null, retry = null, es = null, closed = false;
+      function pollOnce() {
+        if (!closed && !document.hidden && o.fallbackPoll) o.fallbackPoll();
+      }
+      function poll(immediate) {
+        if (timer !== null || closed || document.hidden || !o.fallbackPoll) return;
+        timer = setInterval(pollOnce, o.fallbackMs || 5000);
+        if (immediate !== false) pollOnce();
       }
       function stopPoll() {
-        if (o.always) return; // Keep required polling active.
-        if (timer) { clearInterval(timer); timer = null; }
+        if (timer !== null) { clearInterval(timer); timer = null; }
       }
-      function connect() {
-        if (!window.EventSource) { poll(); return; }
-        es = new EventSource('/api/stream?topics=' + encodeURIComponent(topics.join(',')));
+      function stopRetry() {
+        if (retry !== null) { clearTimeout(retry); retry = null; }
+      }
+      function disconnect() {
+        var source = es; es = null;
+        if (source) try { source.close(); } catch (e) {}
+      }
+      function failed(source) {
+        if (closed || document.hidden || es !== source) return;
+        disconnect();
+        fails += 1;
+        if (fails >= 2) poll();
+        stopRetry();
+        // Retry with capped exponential backoff.
+        retry = setTimeout(function () {
+          retry = null;
+          connect();
+        }, Math.min(60000, 5000 * Math.pow(2, fails - 1)));
+      }
+      function connect(immediate) {
+        if (closed || document.hidden || es || retry !== null) return;
+        if (!window.EventSource) { poll(immediate); return; }
+        var source;
+        try { source = new window.EventSource('/api/stream?topics=' + encodeURIComponent(topics.join(','))); }
+        catch (e) { failed(null); return; }
+        es = source;
+        source.onopen = function () {
+          if (closed || document.hidden || es !== source) return;
+          stopPoll();
+        };
         topics.forEach(function (t) {
-          es.addEventListener(t, function (ev) {
+          source.addEventListener(t, function (ev) {
+            if (closed || document.hidden || es !== source) return;
             var d;
             try { d = JSON.parse(ev.data); } catch (e) { return; }
             fails = 0;
@@ -341,17 +371,22 @@ export function appRuntime() {
             if (o.onmessage) o.onmessage(t, d);
           });
         });
-        es.onerror = function () {
-          try { es.close(); } catch (e) {}
-          fails += 1;
-          if (fails >= 2) poll();
-          // Retry with capped exponential backoff.
-          setTimeout(connect, Math.min(60000, 5000 * Math.pow(2, fails - 1)));
-        };
+        source.onerror = function () { failed(source); };
       }
-      if (o.always) poll();
+      function visibility() {
+        if (closed) return;
+        if (document.hidden) { disconnect(); stopRetry(); stopPoll(); return; }
+        // The page refreshes once on return; resume only the fallback interval here.
+        if (fails >= 2 || !window.EventSource) poll(false);
+        connect(false);
+      }
+      document.addEventListener('visibilitychange', visibility);
       connect();
-      return { close: function () { if (es) try { es.close(); } catch (e) {} if (timer) clearInterval(timer); timer = null; } };
+      return { close: function () {
+        closed = true;
+        document.removeEventListener('visibilitychange', visibility);
+        disconnect(); stopRetry(); stopPoll();
+      } };
     };
 
     ${gridKeyStartsInControl.toString()}

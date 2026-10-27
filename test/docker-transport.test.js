@@ -65,6 +65,7 @@ test('docker JSON reads honour a tcp DOCKER_HOST socket proxy', async (t) => {
 test('one failed container stat does not blank every healthy row', async (t) => {
   const first = 'c'.repeat(64);
   const second = 'd'.repeat(64);
+  let listRequests = 0, statRequests = 0;
   const rows = [first, second].map((Id, index) => ({
     Id,
     Names: [`/service-${index + 1}`],
@@ -76,8 +77,12 @@ test('one failed container stat does not blank every healthy row', async (t) => 
   }));
   const server = createServer((req, res) => {
     res.writeHead(200, { 'content-type': 'application/json' });
-    if (req.url === '/containers/json?all=1') return res.end(JSON.stringify(rows));
-    if (req.url === `/containers/${first}/stats?stream=false`) {
+    if (req.url === '/containers/json?all=1') {
+      listRequests++;
+      return res.end(JSON.stringify(rows));
+    }
+    if (req.url === `/containers/${first}/stats?stream=false&one-shot=true`) {
+      statRequests++;
       return res.end(JSON.stringify({
         cpu_stats: { cpu_usage: { total_usage: 200, percpu_usage: [200] }, system_cpu_usage: 1_000, online_cpus: 1 },
         precpu_stats: { cpu_usage: { total_usage: 100 }, system_cpu_usage: 500 },
@@ -86,7 +91,10 @@ test('one failed container stat does not blank every healthy row', async (t) => 
         blkio_stats: {},
       }));
     }
-    if (req.url === `/containers/${second}/stats?stream=false`) return res.end('{}');
+    if (req.url === `/containers/${second}/stats?stream=false&one-shot=true`) {
+      statRequests++;
+      return res.end('{}');
+    }
     if (req.url === `/containers/${first}/json`) return res.end(JSON.stringify({ RestartCount: 2 }));
     if (req.url === `/containers/${second}/json`) return res.end(JSON.stringify({ RestartCount: 0 }));
     if (req.url === '/info') return res.end(JSON.stringify({ MemTotal: 4096 }));
@@ -107,19 +115,20 @@ test('one failed container stat does not blank every healthy row', async (t) => 
     else process.env.DOCKER_HOST = previousHost;
   });
 
-  const { allContainerStats } = await import(`../src/docker.js?partial-stats=${Date.now()}`);
-  const snapshot = await allContainerStats();
+  const docker = await import(`../src/docker.js?partial-stats=${Date.now()}`);
+  await docker.systemDf();
+  const [snapshot, aggregate] = await Promise.all([docker.allContainerStats(), docker.dockerStats()]);
   assert.equal(snapshot.unavailable, 1);
   assert.equal(snapshot.stats.length, 1);
   assert.equal(snapshot.stats[0].id, first);
   assert.equal(snapshot.stats[0].restarts, 2);
 
-  const dashboard = await import(`../src/docker.js?dashboard-partial=${Date.now()}`);
-  const aggregate = await dashboard.dockerStats();
   assert.equal(aggregate.metricsUnavailable, 1);
-  assert.equal(typeof aggregate.cpu, 'number');
+  assert.equal(aggregate.cpu, null);
   assert.equal(aggregate.mem, 6.25);
   assert.equal(aggregate.top.length, 1);
   assert.equal(aggregate.top[0].mem, 6.25);
   assert.equal(aggregate.disk.total, 0);
+  assert.equal(listRequests, 1, 'the dashboard and container rows share one list request');
+  assert.equal(statRequests, 2, 'the dashboard and container rows share one sample per container');
 });

@@ -2,6 +2,8 @@
 // Rotate managed TLS material and approve advertised-origin changes.
 // Usage: docker exec qm-companion node src/mobile/rotate-cert.js --confirm
 
+// Runs as the node user when docker exec runs this as root in the all-in-one image.
+import '../all-in-one/exec-user.js';
 import { config } from '../config.js';
 import { parseAdvertisedOrigin } from './origin.js';
 import { RESTART_COMMAND, approveAdvertisedOrigin, readMobileCertificateFacts, rotateMobileCertificate } from './cert.js';

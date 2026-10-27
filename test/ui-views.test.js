@@ -168,7 +168,7 @@ test('renders dashboard status without credentials', () => {
   assert.match(html, /media-stack/);
   assert.match(html, /2 containers/);
   assert.match(html, /1 unhealthy/);
-  assert.match(html, /topics: \['counts','events','updates'\]/);
+  assert.match(html, /topics: \['counts','events','updates','stats'\]/);
   assert.match(html, /Storage footprint/);
   assert.match(html, /id="mobile-menu"[^>]*aria-controls="side-menu"/);
   assert.match(html, /id="side-scrim"/);

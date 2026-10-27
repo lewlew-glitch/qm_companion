@@ -321,7 +321,7 @@ function hostBand(docker) {
     </section>
     <div class="band2-col">
       <section class="panel diskcard">
-        <div class="p-h"><span class="p-title"><small>Docker objects</small>Storage footprint</span><span class="r" id="ds-total"></span></div>
+        <div class="p-h"><span class="p-title"><small>Docker objects</small>Storage footprint</span><span class="r" id="ds-total"></span><button class="btn" id="refresh-disk" type="button" aria-label="Refresh Docker storage">${I.rotate}Refresh</button></div>
         <div id="disk" class="disk" data-images="${n(i.images)}" data-volumes="${n(i.volumes)}" data-networks="${n(i.networks)}"><span class="dk-load">Collecting Docker storage</span></div>
         ${dockerAccessState().canManage ? `<button class="btn" id="prune-build" type="button">Clear build cache</button>` : ''}
       </section>
@@ -333,7 +333,7 @@ function hostBand(docker) {
   </div>`;
 }
 
-// Poll stats-only metrics; use live topics for counts, updates, and events.
+// Read initial metrics, then use live topics with polling only as a fallback.
 function dashScript(docker) {
   if (!docker || !docker.counts) return '';
   const eicon = {};
@@ -352,9 +352,20 @@ function dashScript(docker) {
         function areaPath(values,width,height,max,limit){
           if(!values.length) return '';
           var step=width/Math.max(limit-1,1);
-          var points=values.map(function(value,index){ var y=height-3-Math.min(1,value/max)*(height-10); return (index*step).toFixed(1)+','+y.toFixed(1); });
-          var end=((values.length-1)*step).toFixed(1);
-          return 'M0,'+height+' L'+points.join(' L')+' L'+end+','+height+' Z';
+          var paths=[],points=[],start='',end='';
+          function finish(){
+            if(!points.length) return;
+            paths.push('M'+start+','+height+' L'+points.join(' L')+' L'+end+','+height+' Z');
+            points=[];
+          }
+          values.forEach(function(value,index){
+            if(value==null){ finish(); return; }
+            var x=(index*step).toFixed(1),y=height-3-Math.min(1,value/max)*(height-10);
+            if(!points.length) start=x;
+            end=x; points.push(x+','+y.toFixed(1));
+          });
+          finish();
+          return paths.join(' ');
         }
         function draw(){
           var max=Math.max(20,Math.max.apply(null,cpuHistory.concat(memoryHistory,[1]))*1.15);
@@ -364,7 +375,7 @@ function dashScript(docker) {
         function drawDisk(disk){
           var host=document.getElementById('disk');
           if(!host) return;
-          if(!disk){ host.innerHTML='<span class="dk-load">Docker storage unavailable</span>'; return; }
+          if(!disk){ txt('ds-total',''); host.innerHTML='<span class="dk-load">Docker storage unavailable</span>'; return; }
           var counts={ images: host.dataset.images, volumes: host.dataset.volumes, networks: host.dataset.networks };
           var parts=[['Images',disk.images,'a','/images',counts.images],['Containers',disk.containers,'b','/containers',''],['Volumes',disk.volumes,'c','/volumes',counts.volumes],['Build cache',disk.build,'d','','']];
           var total=disk.total||1,r=43,circumference=2*Math.PI*r,offset=0;
@@ -383,15 +394,23 @@ function dashScript(docker) {
           host.innerHTML='<div class="ring-wrap"><div class="ring"><svg viewBox="0 0 104 104">'+segments+'</svg><div class="r-mid"><div><b>'+fmt(disk.total)+'</b><span>accounted</span></div></div></div><div class="ds-legend">'+legend+'</div></div>';
         }
         function poll(){
-          fetch('/api/docker/stats').then(function(response){ if(!response.ok) throw new Error('stats'); return response.json(); }).then(function(data){
+          if(document.hidden) return;
+          fetch('/api/docker/stats').then(function(response){ if(!response.ok) throw new Error('stats'); return response.json(); }).then(drawStats).catch(function(){
+            live('cpu','Unavailable'); live('mem','Unavailable'); txt('env-chart-state','Live metrics unavailable');
+            var list=document.getElementById('env-top'); if(list) list.innerHTML='<span class="dk-load">Container metrics unavailable</span>';
+          });
+        }
+        function drawStats(data){
+            var hostCpu=null;
             if(data.cpu!=null){
               var cores=(data.cores&&data.cores>0)?data.cores:0;
-              var hostCpu=cores?data.cpu/cores:data.cpu;
-              cpuHistory.push(hostCpu);
-              live('cpu',(cores?hostCpu.toFixed(0):data.cpu.toFixed(1))+'%');
-              live('cpu-detail',cores?((data.cpu/100).toFixed(1)+' of '+cores+' cores in use'):'100% is one core busy');
-            }
-            if(data.mem!=null){ memoryHistory.push(data.mem); live('mem',data.mem.toFixed(1)+'%'); }
+              hostCpu=cores?data.cpu/cores:data.cpu;
+              live('cpu',(cores?hostCpu.toFixed(0):data.cpu.toFixed(1))+'%'+(data.cpuPartial?' partial':''));
+              live('cpu-detail',(cores?((data.cpu/100).toFixed(1)+' of '+cores+' cores in use'):'100% is one core busy')+(data.cpuPartial?' · partial total':''));
+            } else { live('cpu','-'); live('cpu-detail','100% is one core busy'); }
+            if(data.mem!=null) live('mem',data.mem.toFixed(1)+'%');
+            else live('mem','Unavailable');
+            cpuHistory.push(hostCpu); memoryHistory.push(data.mem==null?null:data.mem);
             if(cpuHistory.length>90){ cpuHistory.shift(); memoryHistory.shift(); }
             if(data.temps&&data.temps.cpuC!=null){
               live('temp',data.temps.cpuC+'\u00B0C');
@@ -402,24 +421,35 @@ function dashScript(docker) {
             } else {
               live('temp','Unavailable'); live('temp-detail','No host sensors exposed');
             }
-            if(data.cpu==null||data.mem==null){
+            if(data.cpu==null&&data.mem==null){
               live('cpu','Unavailable'); live('mem','Unavailable'); txt('env-chart-state','Container metrics unavailable');
             } else {
               txt('env-chart-state',data.metricsUnavailable ? data.metricsUnavailable+' running container'+(data.metricsUnavailable===1?'':'s')+' unavailable' : 'Live samples since page opened');
-              draw();
             }
+            draw();
             var list=document.getElementById('env-top');
             if(list){
-              if(data.top&&data.top.length){ list.innerHTML=data.top.map(function(item){ var cpu=Math.max(0,Math.min(100,item.cpu)); var mem=item.mem==null?'-':item.mem.toFixed(1)+'%'; return '<div class="dk-row"><span class="dk-name">'+esc(item.name)+'</span><span class="dk-bar"><i style="width:'+cpu.toFixed(0)+'%"></i></span><span class="dk-val">'+item.cpu.toFixed(1)+'%</span><span class="dk-val dim">'+mem+'</span></div>'; }).join(''); }
+              if(data.top&&data.top.length){ list.innerHTML=data.top.map(function(item){ var cpu=Math.max(0,Math.min(100,item.cpu||0)); var cpuText=item.cpu==null?'-':item.cpu.toFixed(1)+'%'; var mem=item.mem==null?'-':item.mem.toFixed(1)+'%'; return '<div class="dk-row"><span class="dk-name">'+esc(item.name)+'</span><span class="dk-bar"><i style="width:'+cpu.toFixed(0)+'%"></i></span><span class="dk-val">'+cpuText+'</span><span class="dk-val dim">'+mem+'</span></div>'; }).join(''); }
               else list.innerHTML=data.cpu==null?'<span class="dk-load">Container metrics unavailable</span>':'<span class="dk-load">No running containers.</span>';
             }
-            var disk=document.getElementById('disk'); if(disk&&!disk.dataset.done){ disk.dataset.done='1'; drawDisk(data.disk); }
-          }).catch(function(){
-            live('cpu','Unavailable'); live('mem','Unavailable'); txt('env-chart-state','Live metrics unavailable');
-            var list=document.getElementById('env-top'); if(list) list.innerHTML='<span class="dk-load">Container metrics unavailable</span>';
-            var disk=document.getElementById('disk'); if(disk&&!disk.dataset.done) disk.innerHTML='<span class="dk-load">Docker storage unavailable</span>';
+            if(!diskRun) drawDisk(data.disk);
+        }
+        var diskRefresh=document.getElementById('refresh-disk'), diskRun=false;
+        function pollDisk(refresh){
+          if(document.hidden||diskRun) return;
+          diskRun=true;
+          if(diskRefresh) diskRefresh.disabled=true;
+          var options=refresh?{ method: 'POST', headers: { 'x-csrf-token': document.querySelector('meta[name=csrf]').content } }:undefined;
+          fetch('/api/docker/df',options).then(function(response){ if(!response.ok) throw new Error('df'); return response.json(); }).then(function(data){
+            drawDisk(data.disk);
+          }).catch(function(){ drawDisk(null); }).finally(function(){
+            diskRun=false;
+            if(diskRefresh) diskRefresh.disabled=false;
           });
         }
+        if(diskRefresh) diskRefresh.addEventListener('click',function(){ pollDisk(true); });
+        pollDisk(false);
+        document.addEventListener('visibilitychange',function(){ if(!document.hidden){ poll(); pollDisk(false); } });
         function healthHtml(c){
           var checks=(c.healthy||0)+(c.unhealthy||0)+(c.starting||0);
           if(c.unhealthy) return '<span class="state bad"><i></i>'+c.unhealthy+' unhealthy</span><span class="rib-note">across '+checks+' reported health checks</span>';
@@ -473,10 +503,11 @@ function dashScript(docker) {
         });
         // Start live updates after the shared runtime loads.
         window.addEventListener('DOMContentLoaded', function(){
+          poll();
           if(window.qmLive){
-            qmLive({ topics: ['counts','events','updates'], always: true, fallbackPoll: poll, fallbackMs: 5000,
-              onmessage: function(topic,data){ if(topic==='counts') drawCounts(data); else if(topic==='events') drawEvents(data); else if(topic==='updates') drawUpdates(data); } });
-          } else { poll(); setInterval(poll, 5000); }
+            qmLive({ topics: ['counts','events','updates','stats'], fallbackPoll: poll, fallbackMs: 5000,
+              onmessage: function(topic,data){ if(topic==='counts') drawCounts(data); else if(topic==='events') drawEvents(data); else if(topic==='updates') drawUpdates(data); else if(topic==='stats') drawStats(data); } });
+          } else { setInterval(poll, 5000); }
         });
       })();
     </script>`;

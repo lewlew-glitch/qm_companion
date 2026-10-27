@@ -2,7 +2,7 @@
 
 const PING_MS = 20_000;
 // Poll intervals by topic while listeners are present.
-const CADENCE = { counts: 2_000, events: 3_000, updates: 30_000 };
+const CADENCE = { counts: 2_000, events: 3_000, updates: 30_000, stats: 10_000 };
 
 export const HUB_TOPICS = Object.keys(CADENCE);
 export const HUB_MAX_CLIENTS = 16;

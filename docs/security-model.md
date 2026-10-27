@@ -54,6 +54,8 @@ The installed Compose profile is the maximum Docker authority granted to the pro
 
 The shipped Read only profile uses proxy `POST=0` and `EXEC=0`. Management enables broad Docker writes. Management + shell also enables container exec. The latter two profiles should be treated as host-root-equivalent. Lowering the active panel mode does not remove the proxy permission from a compromised Companion process.
 
+The all-in-one image keeps the proxy and Companion in one container under different users. Only the root proxy can open the socket, and its key is generated at each start and never stored. A process that gains root inside that container has the socket, which the two-container setup does not allow.
+
 A raw Docker socket mount has no read-only security boundary. Docker inspection can also disclose container environment values, mounts, and host topology. Configuration and operational limits are covered in [Docker access](docker-access.md).
 
 Marketplace deployment rejects Docker socket binds and host binds outside the configured roots. This validation does not make Docker writes low privilege. Review proposed Compose before deployment, especially proposals sourced from unreviewed community templates.
@@ -79,7 +81,7 @@ Script bearer tokens are read-only and limited to documented status endpoints. C
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `SECRET_KEY` | yes | Exactly 64 hexadecimal characters. Encrypts sensitive state and must remain stable across upgrades. |
-| `QM_PROXY_KEY` | socket proxy | At least 32 characters and different from `SECRET_KEY`. Authenticates requests to the Docker proxy. |
+| `QM_PROXY_KEY` | socket proxy | At least 32 characters and different from `SECRET_KEY`. Authenticates requests to the Docker proxy. The all-in-one image generates its own. |
 | `SETUP_TOKEN` | no | First-run bootstrap token containing 32 to 256 base64url characters. A 256-bit value is generated and logged while ownerless when absent. |
 | `DATA_DIR` | no | Persistent state directory. The Compose profile uses `/data`. |
 | `SESSION_TTL_HOURS` | no | Owner session lifetime. The default is 24 hours. |

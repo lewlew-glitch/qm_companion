@@ -8,6 +8,7 @@ import { join } from 'node:path';
 
 const RUNNING_ID = 'a'.repeat(64);
 const EXITED_ID = 'b'.repeat(64);
+let statReads = 0;
 
 function jsonRes(res, value) {
   const body = JSON.stringify(value);
@@ -28,10 +29,10 @@ const daemon = createServer((req, res) => {
   if (path === '/volumes') return jsonRes(res, { Volumes: [] });
   if (path === '/system/df') return jsonRes(res, { LayersSize: 0, Images: [], Containers: [], Volumes: [], BuildCache: [] });
   if (path === '/images/json') return jsonRes(res, []);
-  if (path === `/containers/${RUNNING_ID}/stats?stream=false`) {
+  if (path === `/containers/${RUNNING_ID}/stats?stream=false&one-shot=true`) {
+    const index = statReads++;
     return jsonRes(res, {
-      cpu_stats: { cpu_usage: { total_usage: 400 }, system_cpu_usage: 2000, online_cpus: 4 },
-      precpu_stats: { cpu_usage: { total_usage: 200 }, system_cpu_usage: 1000 },
+      cpu_stats: { cpu_usage: { total_usage: 400 + index * 200 }, system_cpu_usage: 2000 + index * 1000, online_cpus: 4 },
       memory_stats: { usage: 500 * 1024 ** 2, limit: 2 * 1024 ** 3, stats: { inactive_file: 100 * 1024 ** 2 } },
     });
   }
@@ -119,9 +120,11 @@ test('container detail omits topology data', async () => {
   assert.equal(c.name, 'jellyfin');
   assert.equal(c.restarts, 2);
   assert.ok(c.startedAt > 0, 'a running container states when it started');
-  assert.ok(Math.abs(c.cpuPct - 80) < 0.01, 'live cpu in docker convention, 100 = one core');
+  assert.ok(!('cpuPct' in c), 'the first one-shot sample has no CPU baseline');
   assert.equal(c.memBytes, 400 * 1024 ** 2);
   assert.equal(c.memLimitBytes, 2 * 1024 ** 3);
+  const second = await containerDetailDto(RUNNING_ID.slice(0, 12));
+  assert.ok(Math.abs(second.container.cpuPct - 80) < 0.01, 'CPU comes from consecutive one-shot samples, 100 = one core');
   for (const forbidden of ['ports', 'env', 'mounts', 'labels', 'networks', 'ip']) {
     assert.ok(!(forbidden in c), `no ${forbidden} on the device DTO`);
   }
@@ -133,6 +136,18 @@ test('container detail omits topology data', async () => {
 
   const missing = await containerDetailDto('c'.repeat(12));
   assert.equal(missing.container, null, 'an unknown id returns null');
+});
+
+test('container detail omits unavailable CPU instead of reporting idle', async () => {
+  for (const cpu of [null, undefined, NaN, Infinity, -Infinity]) {
+    const out = await containerDetailDto(RUNNING_ID.slice(0, 12), async () => ({ cpu, memUsed: 400, memLimit: 1000 }));
+    assert.ok(!('cpuPct' in out.container));
+    assert.equal(out.container.memBytes, 400);
+  }
+  for (const cpu of [0, 180]) {
+    const out = await containerDetailDto(RUNNING_ID.slice(0, 12), async () => ({ cpu, memUsed: 400, memLimit: 1000 }));
+    assert.equal(out.container.cpuPct, cpu);
+  }
 });
 
 test('the detail route is bearer-gated like every other read', async () => {

@@ -70,7 +70,7 @@ Check the values without printing them:
 ) && docker compose -f docker-compose.published.yml config --quiet
 ```
 
-Both images use `latest` by default. To pin a release, add `QM_COMPANION_TAG=0.1.10` to `.env`; it applies to Companion and the socket proxy.
+The images use `latest` by default. To pin a release, add `QM_COMPANION_TAG=0.1.11` to `.env`; it applies to Companion, the socket proxy and the all-in-one image.
 
 Start the recommended read-only profile:
 
@@ -89,6 +89,21 @@ Use a trusted private network for plain HTTP. Put Companion behind a trusted HTT
 Saltbox installations can use the supplied Traefik overlay; see [Saltbox](docs/saltbox.md).
 
 The guides in `docs/` and the panel use `docker-compose.example.yml` with `--build`. With published images, use `docker-compose.published.yml` and leave out `--build`, and download any overlay you add into the same folder.
+
+### One container
+
+`docker-compose.all-in-one.yml` runs Companion and its Docker socket proxy in one container from `ghcr.io/lewlew-glitch/qm-companion-all-in-one`. Download it instead of `docker-compose.published.yml`, make the same edits, and put only `SECRET_KEY` in `.env`:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docker-compose.all-in-one.yml
+docker compose -f docker-compose.all-in-one.yml up -d
+```
+
+The proxy listens on the container's loopback address and generates its key at each start, so there is no `QM_PROXY_KEY` to create. Companion runs as the `node` user, which cannot open the Docker socket. The container starts as root only to run the proxy, and it refuses to start when the socket would let the `node` user connect.
+
+Set `DOCKER_ACCESS_MAX` to `manage` or `shell` in the file instead of adding an access overlay, then recreate the container. With `network_mode: host`, set `PORT` for the panel, and `PROXY_PORT` if 2375 is already in use on the host.
+
+The two-container setup keeps the Docker socket out of Companion's container altogether. The single container separates them by user inside one container instead. Use the two containers where that difference matters to you.
 
 ### Build from source
 
@@ -123,6 +138,8 @@ The Compose profile sets the maximum Docker access available to Companion:
 | Management + shell | `docker compose -f docker-compose.example.yml -f docker-compose.shell.yml up -d --build` | Docker writes and container exec |
 
 The guides in `docs/` and the panel use `docker-compose.example.yml` with `--build`. With published images, use `docker-compose.published.yml` and leave out `--build`, and download any overlay you add into the same folder.
+
+With `docker-compose.all-in-one.yml`, `DOCKER_ACCESS_MAX` alone sets the profile: `read`, `manage` or `shell`. Do not add the management or shell overlay to it.
 
 Every explicit profile starts with the active mode set to Read only. The owner can raise it from **Docker access** up to the installed maximum. Management and Management + shell grant broad Docker authority to the Companion process even while the active application mode is lower. Use the Read only profile when Docker writes are not required.
 

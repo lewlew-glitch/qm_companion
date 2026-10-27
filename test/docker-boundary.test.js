@@ -324,7 +324,7 @@ test('public Companion recreate commands rebuild the local images', () => {
     const guide = readFileSync(join(projectRoot, file), 'utf8');
     for (const line of guide.split('\n')) {
       if (line.includes('docker compose') && line.includes(' up -d')) {
-        if (line.includes('docker-compose.published.yml')) {
+        if (line.includes('docker-compose.published.yml') || line.includes('docker-compose.all-in-one.yml')) {
           assert.ok(!line.includes('--build'), `${file} exposes a published-image recreate with --build: ${line}`);
         } else {
           assert.ok(line.includes('--build'), `${file} exposes a recreate without --build: ${line}`);

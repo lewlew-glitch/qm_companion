@@ -35,7 +35,7 @@ import { isProtectedContainer } from './protect.js';
 import { pairingCredentialState } from './kinds.js';
 import { canSaveManualKey } from './keyladder.js';
 import { OneTimeTransfers, qmc1Payload } from './qmbackup.js';
-import { listContainers, containerLogs, containerActionResult, removeContainer, execInContainer, dockerAvailable, dockerCounts, dockerInfo, dockerStats, listImages, pullImage, removeImage, pruneImages, prune, pruneContainersGuarded, protectedContainerReason, listVolumes, listNetworks, createNetwork, removeNetwork, recentEvents, allContainerStats, listStacks, updateContainer, inspectContainer, systemDf, removeVolume } from './docker.js';
+import { listContainers, containerLogs, containerActionResult, removeContainer, execInContainer, dockerAvailable, dockerCounts, dockerInfo, dockerStats, listImages, pullImage, removeImage, pruneImages, prune, pruneContainersGuarded, protectedContainerReason, listVolumes, listNetworks, createNetwork, removeNetwork, recentEvents, allContainerStats, listStacks, updateContainer, inspectContainer, cachedSystemDf, systemDf, removeVolume } from './docker.js';
 import { createHub, HUB_TOPICS } from './hub.js';
 import { renderDevicesReadOnly } from './mobile/owner-routes.js';
 import { prepareMobilePlane, secureOwnerConfiguration, startMobileListener } from './mobile/listener.js';
@@ -93,6 +93,7 @@ const BEARER_READ_PATHS = new Set([
 const hub = createHub({
   fetchers: {
     counts: () => dockerCounts(),
+    stats: async () => (await dockerStats()) || { cpu: null, mem: null, top: [], disk: null },
     // Treat proxy refusals as unavailable data.
     events: async () => {
       const events = await recentEvents(24, 12);
@@ -1463,8 +1464,8 @@ async function route(req, res, panel = {}) {
   }
   if (path === '/api/updates/check' && method === 'POST') return handleUpdateCheckOne(req, res);
   if (path === '/api/updates/dismiss' && method === 'POST') return handleUpdateDismiss(req, res);
-  if (path === '/api/docker/df' && method === 'GET') {
-    const df = await systemDf();
+  if (path === '/api/docker/df' && (method === 'GET' || method === 'POST')) {
+    const df = method === 'POST' ? await systemDf({ refresh: true }) : cachedSystemDf();
     if (df === 'blocked') return json(res, 503, { error: 'the socket proxy blocks /system/df (needs SYSTEM: 1)' });
     if (!df) return json(res, 503, { error: 'Docker disk usage is unavailable' });
     return json(res, 200, df);

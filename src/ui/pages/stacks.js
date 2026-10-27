@@ -160,7 +160,9 @@ export function stacksPage(stacks, control, csrf, managed = []) {
           try { var hashRow = document.getElementById(decodeURIComponent(location.hash.slice(1))); if (hashRow && hashRow.classList.contains('stack-row')) openRow(hashRow, true); } catch (e) {}
         }
         function fb(n){ if(!n) return '0'; var u=['B','K','M','G','T'],i=0; while(n>=1024&&i<u.length-1){n/=1024;i++;} return (n<10&&i>0?n.toFixed(1):Math.round(n))+u[i]; }
-        function pollStats() { fetch('/api/containers/stats').then(function(r){if(!r.ok) throw new Error('stats'); return r.json();}).then(function(d){
+        function pollStats() {
+          if (document.hidden) return;
+          fetch('/api/containers/stats').then(function(r){if(!r.ok) throw new Error('stats'); return r.json();}).then(function(d){
           var m = {}; (d.stats || []).forEach(function(s){ m[s.id] = s; });
           function fill(bar, pct){ bar.style.transform = 'scaleX(' + (Math.min(100, Math.max(0, pct)) / 100) + ')'; }
           // Scale cumulative network and disk totals against the busiest visible container.
@@ -171,7 +173,7 @@ export function stacksPage(stacks, control, csrf, managed = []) {
           });
           document.querySelectorAll('.m-cpu').forEach(function(el){
             var b=el.querySelector('b'), bar=el.querySelector('i'), s=m[b.dataset.cid]; if(!s) { if (b.textContent === '·') b.textContent = 'Unavailable'; return; }
-            b.textContent = s.cpu.toFixed(1)+'%'; fill(bar, s.cpu);
+            b.textContent = s.cpu == null ? '-' : s.cpu.toFixed(1)+'%'; fill(bar, s.cpu || 0);
           });
           document.querySelectorAll('.m-mem').forEach(function(el){
             var b=el.querySelector('b'), bar=el.querySelector('i'), s=m[b.dataset.cid]; if(!s) { if (b.textContent === '·') b.textContent = 'Unavailable'; return; }
@@ -189,15 +191,15 @@ export function stacksPage(stacks, control, csrf, managed = []) {
           });
           function values(el, pick){
             var ids = (el.dataset.ids || '').split(',').filter(Boolean), missing = 0;
-            var value = ids.reduce(function (n, id) { var s = m[id]; if (!s) { missing++; return n; } return n + pick(s); }, 0);
-            return { value: value, missing: missing };
+            var value = ids.reduce(function (n, id) { var s = m[id], v = s && pick(s); if (v == null) { missing++; return n; } return n + v; }, 0);
+            return { value: ids.length && missing === ids.length ? null : value, missing: missing };
           }
           document.querySelectorAll('.agg-cpu').forEach(function(el){
-            var answer = values(el, function(s){return s.cpu;}); el.textContent = answer.value.toFixed(1)+'%' + (answer.missing ? ' partial' : ''); el.closest('.stack-row').dataset.cpu = String(answer.value);
+            var answer = values(el, function(s){return s.cpu;}); el.textContent = answer.value == null ? '-' : answer.value.toFixed(1)+'%' + (answer.missing ? ' partial' : ''); el.closest('.stack-row').dataset.cpu = answer.value == null ? '' : String(answer.value);
           });
           // Aggregate memory in bytes because container limits may differ.
           document.querySelectorAll('.agg-mem').forEach(function(el){
-            var answer = values(el, function(s){return s.memUsed || 0;}); el.textContent = fb(answer.value) + (answer.missing ? ' partial' : ''); el.closest('.stack-row').dataset.mem = String(answer.value);
+            var answer = values(el, function(s){return s.memUsed || 0;}); el.textContent = answer.value == null ? '-' : fb(answer.value) + (answer.missing ? ' partial' : ''); el.closest('.stack-row').dataset.mem = answer.value == null ? '' : String(answer.value);
           });
           var note=document.getElementById('stack-metric-note'); if(note) note.textContent=d.unavailable ? 'Live container use, ' + d.unavailable + ' unavailable' : 'Live container use';
         }).catch(function(){
@@ -206,6 +208,7 @@ export function stacksPage(stacks, control, csrf, managed = []) {
           document.querySelectorAll('.agg-cpu,.agg-mem').forEach(function(el){ el.textContent='Unavailable'; });
         }); }
         pollStats(); setInterval(pollStats, 5000);
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) pollStats(); });
 
         // Read update state from the shared cache without inferring missing values.
         fetch('/api/updates?cached=1').then(function (r) { return r.json(); }).then(function (d) {
