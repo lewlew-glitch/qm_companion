@@ -13,7 +13,7 @@
   <ReadMe>https://raw.githubusercontent.com/lewlew-glitch/qm_companion/main/docs/unraid.md</ReadMe>
   <Category>Tools:System</Category>
   <ExtraSearchTerms>quartermaster docker socket proxy</ExtraSearchTerms>
-  <Requires>Create the qm-companion Docker network first. Install before qm-companion and select that network for both containers. Keep the container name, do not publish port 2375 and use the same QM_PROXY_KEY in both templates.</Requires>
+  <Requires>Create the qm-companion Docker network first. Install before qm-companion and select that network for both containers. Keep the container name, do not publish port 2375 and use the same QM_PROXY_KEY in both templates. Do not use br0 or another macvlan network.</Requires>
   <License>MIT</License>
   <ExtraParams>--restart=unless-stopped --read-only --cap-drop=ALL --security-opt=no-new-privileges --tmpfs=/tmp:size=4m,mode=1777 --tmpfs=/run:size=1m,mode=0755 --label=qm.protected=true</ExtraParams>
 

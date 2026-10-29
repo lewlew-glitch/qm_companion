@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { hostTemps } from '../src/docker.js';
+import { hostTemps, readHostTemps, resetHostTempsForTest } from '../src/docker.js';
 
 function buildHwmon(spec) {
   const base = mkdtempSync(join(tmpdir(), 'qm-hwmon-'));
@@ -60,4 +60,31 @@ test('falls back to the thermal-zone CPU temperature', (t) => {
   t.after(() => rmSync(base, { recursive: true, force: true }));
   const temps = hostTemps(hwmon, thermal);
   assert.equal(temps.cpuC, 66);
+});
+
+test('drive sensors are read at most every ten minutes while CPU and board sensors stay live', (t) => {
+  const base = buildHwmon([
+    { name: 'coretemp', temps: [{ milli: 50000, label: 'Package id 0' }] },
+    { name: 'drivetemp', temps: [{ milli: 35000 }] },
+    { name: 'acpitz', temps: [{ milli: 30000 }] },
+  ]);
+  const noThermal = join(base, 'no-thermal');
+  t.after(() => { rmSync(base, { recursive: true, force: true }); resetHostTempsForTest(); });
+  resetHostTempsForTest();
+  assert.deepEqual(readHostTemps({ now: 0, base, thermalBase: noThermal }), { cpuC: 50, driveC: 35, boardC: 30, driveCount: 1 });
+  writeFileSync(join(base, 'hwmon0', 'temp1_input'), '61000\n');
+  writeFileSync(join(base, 'hwmon1', 'temp1_input'), '44000\n');
+  assert.deepEqual(readHostTemps({ now: 599_999, base, thermalBase: noThermal }), { cpuC: 61, driveC: 35, boardC: 30, driveCount: 1 },
+    'the CPU is read again but the drive is not asked inside ten minutes');
+  assert.equal(readHostTemps({ now: 600_000, base, thermalBase: noThermal }).driveC, 44);
+});
+
+test('a host with only drive sensors keeps reporting them between drive reads', (t) => {
+  const base = buildHwmon([{ name: 'nvme', temps: [{ milli: 40000, label: 'Composite' }] }]);
+  const noThermal = join(base, 'no-thermal');
+  t.after(() => { rmSync(base, { recursive: true, force: true }); resetHostTempsForTest(); });
+  resetHostTempsForTest();
+  assert.deepEqual(readHostTemps({ now: 0, base, thermalBase: noThermal }), { cpuC: null, driveC: 40, boardC: null, driveCount: 1 });
+  assert.deepEqual(readHostTemps({ now: 1000, base, thermalBase: noThermal }), { cpuC: null, driveC: 40, boardC: null, driveCount: 1 });
+  assert.equal(hostTemps(base, noThermal, { drives: false }), null);
 });

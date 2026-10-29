@@ -212,4 +212,16 @@ test('scan copy omits keys excluded from the scan', () => {
   assert.match(stopped, /data-pairing="included"/);
 });
 
+test('a LAN-attached Companion is named on the dashboard, escaped, and nothing shows otherwise', () => {
+  const lan = [{ container: 'qm-companion', network: 'br0', driver: 'macvlan', ip: '192.168.1.2' },
+    { container: '<proxy>', network: 'vlan20', driver: 'ipvlan', ip: '' }];
+  const html = dashboardPage([], NO_LIVE, docker({ rest: { lan } }), 'csrf');
+  assert.match(html, /Companion has its own address on your network/);
+  assert.match(html, /qm-companion is on br0 \(macvlan, 192\.168\.1\.2\)/);
+  assert.match(html, /&lt;proxy&gt; is on vlan20 \(ipvlan\)/);
+  assert.match(html, /Custom: qm-companion/);
+  assert.doesNotMatch(dashboardPage([], NO_LIVE, docker(), 'csrf'), /its own address on your network/);
+  assert.doesNotMatch(dashboardPage([], NO_LIVE, docker({ rest: { lan: [] } }), 'csrf'), /its own address on your network/);
+});
+
 process.on('exit', () => rmSync(dataDir, { recursive: true, force: true }));

@@ -74,7 +74,7 @@ export function volumesPage(volumes, control, csrf, usedBy = {}) {
         apply();
         function fmt(n){ if(!n) return '0 B'; var u=['B','KB','MB','GB','TB'],i=0; while(n>=1024&&i<u.length-1){n/=1024;i++;} return (n<10&&i>0?n.toFixed(1):Math.round(n))+' '+u[i]; }
         // Fetch sizes once per page load and mark unavailable results explicitly.
-        fetch('/api/docker/df').then(function (r) { if (!r.ok) throw new Error('df'); return r.json(); }).then(function (d) {
+        fetch('/api/docker/df?volumes=1').then(function (r) { if (!r.ok) throw new Error('df'); return r.json(); }).then(function (d) {
           var vols = d.volumes || {};
           document.querySelectorAll('.vsize').forEach(function (el) {
             var v = vols[el.dataset.vol];

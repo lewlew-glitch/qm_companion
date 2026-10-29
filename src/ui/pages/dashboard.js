@@ -259,6 +259,16 @@ function environmentPanel(docker) {
   </section>`;
 }
 
+// Companion or its proxy on macvlan or ipvlan (Unraid's br0) holds its own LAN address.
+function lanNotice(docker) {
+  const rows = docker && Array.isArray(docker.lan) ? docker.lan : [];
+  if (!rows.length) return '';
+  const where = rows.map((row) => `${escapeHtml(row.container)} is on ${escapeHtml(row.network)} (${escapeHtml(row.driver)}${row.ip ? `, ${escapeHtml(row.ip)}` : ''})`).join('; ');
+  return `<section class="panel dash-unavailable">
+    <div class="docker-notice"><span>${I.alert}</span><div><b>Companion has its own address on your network</b><small>${where}. An address there can clash with another device and knock it offline. Companion only needs its own bridge network. On Unraid, choose Custom: qm-companion for both containers.</small></div></div>
+  </section>`;
+}
+
 function metricCard({ href, icon, label, value, key, detail, tone = '', toneKey = '' }) {
   const live = key ? ` data-count="${key}"` : '';
   // Keep the status colour with its live value.
@@ -561,6 +571,7 @@ export function dashboardPage(detected, live, docker, csrf) {
   return shell('dash', csrf, meta, `
     ${board('dash', 'Dashboard', '', meta)}
     ${environmentPanel(docker)}
+    ${lanNotice(docker)}
     ${phoneSetup(detected, t)}
     ${environmentMetrics(docker)}
     ${contextParts.length ? `<div class="dash-context${contextParts.length === 1 ? ' single' : ''}">${contextParts.join('')}</div>` : ''}

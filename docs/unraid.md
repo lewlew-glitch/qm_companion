@@ -14,7 +14,7 @@ docker network create qm-companion
 
 If that name already exists, check that it is a bridge network intended for these two containers. The templates select `qm-companion`; choose **Custom: qm-companion** in each container's Network Type field if Unraid has not selected it automatically. Both containers must join the same network. Do not select the default `bridge`, `host`, or a direct LAN network such as `br0`.
 
-Keep the template's `qm-companion` network: a `br0` address that clashes with another device can knock that device off the network.
+Keep the template's `qm-companion` network: a `br0` address that clashes with another device can knock that device off the network. If either container is on `br0` or another macvlan or ipvlan network, Companion says so on its dashboard and in its log.
 
 For a new installation, generate two different keys:
 
@@ -101,6 +101,18 @@ If the proxy log shows `403` for several read endpoints such as `/info`, `/conta
 3. Apply changes to the affected containers from Unraid. Keep Docker writes and Container shell at `0` for a read-only installation. Do not expose port 2375 or replace the authenticated proxy with an unrestricted socket mount.
 
 A `403` alone does not establish whether the key or a read permission was rejected. Changing Docker networks will not fix an authentication mismatch.
+
+## Other devices drop off the network while Companion runs
+
+If network devices report offline, or streams stall, only while Companion is running, check the network of both containers first:
+
+```sh
+docker inspect -f '{{.Name}} {{range $k,$v := .NetworkSettings.Networks}}{{$k}}={{$v.IPAddress}} {{end}}' qm-companion qm-socket-proxy
+```
+
+A container on `br0`, or on another macvlan or ipvlan network, takes its own address on the LAN. Docker assigns it from the network's range without asking your DHCP server, so it can already belong to an access point, a switch or a streaming client. Move both containers to **Custom: qm-companion** as described in [Install](#install).
+
+Companion does not scan the network or contact network equipment. It checks the server's own service ports when a page that lists services opens, at most once a minute, and again every five seconds while Set up is open. With no page open it reads Docker once a minute. Docker disk usage is measured in full on the first look, when you choose Refresh on the dashboard and when you open Volumes after ten minutes; background reads in between ask Docker for image and build cache sizes only.
 
 ## Tailscale subnet routes and the mobile origin
 

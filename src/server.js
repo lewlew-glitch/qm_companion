@@ -1,6 +1,7 @@
 // Route access is deny-by-default and keyed by method and path.
 
 import { createServer } from 'node:http';
+import { hostname } from 'node:os';
 import QRCode from 'qrcode';
 
 import { config } from './config.js';
@@ -21,6 +22,8 @@ import {
 } from './auth.js';
 import { newSecret, base32, otpauthUrl } from './totp.js';
 import { gatherStack, readMountedConfigFile, applyMintedKeys, resolveContainerForInstance, extractContainerApiKey } from './detect.js';
+import { createDiscoveryCache } from './discovery-cache.js';
+import { createLanCheck, ownId, proxyName } from './network-check.js';
 import { getPrefs, setPrefs, listApiTokens, addApiToken, removeApiToken, findApiToken, getInstallationId, getManagedStacks, saveManagedStack, getTemplateSources, addTemplateSource, removeTemplateSource, getMintedKeys, setMintedKey, forgetMintedKey, addAudit, getAuditLog } from './store.js';
 import { fetchTemplateSource, writeTemplateCache, dropTemplateCache, templateSourcesView } from './templates.js';
 import { listJobs, setJobEnabled, setJobSchedule, runJob, addJob, updateJob, deleteJob, clearHistory, suspendJobsAboveMode, requiredDockerModeForAction, requiredDockerModeForJob, requiredDockerModeForJobEdit } from './cron.js';
@@ -35,7 +38,7 @@ import { isProtectedContainer } from './protect.js';
 import { pairingCredentialState } from './kinds.js';
 import { canSaveManualKey } from './keyladder.js';
 import { OneTimeTransfers, qmc1Payload } from './qmbackup.js';
-import { listContainers, containerLogs, containerActionResult, removeContainer, execInContainer, dockerAvailable, dockerCounts, dockerInfo, dockerStats, listImages, pullImage, removeImage, pruneImages, prune, pruneContainersGuarded, protectedContainerReason, listVolumes, listNetworks, createNetwork, removeNetwork, recentEvents, allContainerStats, listStacks, updateContainer, inspectContainer, cachedSystemDf, systemDf, removeVolume } from './docker.js';
+import { listContainers, containerLogs, containerActionResult, removeContainer, execInContainer, dockerAvailable, dockerCounts, dockerInfo, dockerStats, listImages, pullImage, removeImage, pruneImages, prune, pruneContainersGuarded, protectedContainerReason, listVolumes, listNetworks, createNetwork, removeNetwork, recentEvents, allContainerStats, listStacks, updateContainer, inspectContainer, cachedSystemDf, systemDf, removeVolume, dockerGetJson } from './docker.js';
 import { createHub, HUB_TOPICS } from './hub.js';
 import { renderDevicesReadOnly } from './mobile/owner-routes.js';
 import { prepareMobilePlane, secureOwnerConfiguration, startMobileListener } from './mobile/listener.js';
@@ -342,9 +345,15 @@ async function handleMfaDisable(req, res, token, csrf, auth) {
   return renderProfile(res, disabled.session.csrf, 'Two-factor turned off. Other signed-in browsers were signed out.');
 }
 
+const discover = createDiscoveryCache({ gather: () => gatherStack(config.stackDir, config.qmHost) });
+const lanCheck = createLanCheck({
+  read: () => Promise.all([dockerGetJson('/containers/json?all=1'), dockerGetJson('/networks')]),
+  identity: { selfId: ownId(hostname()), proxy: proxyName(config.dockerHost) },
+});
+
 // Overlay stored credentials on the latest discovery result.
-async function currentServices() {
-  const detected = await gatherStack(config.stackDir, config.qmHost);
+async function currentServices({ fresh = false } = {}) {
+  const detected = await discover({ fresh });
   const { services, stale } = applyMintedKeys(detected, getMintedKeys());
   for (const id of stale) forgetMintedKey(id);
   return services;
@@ -398,7 +407,7 @@ async function handleDashboard(req, res, csrf) {
   // Use cached registry results for the shared update indicator.
   const s = updatesState(containers || [], Array.isArray(images) ? images : []);
   const updates = s.checkedAt ? { count: s.updateCount, at: s.checkedAt } : null;
-  return html(res, 200, dashboardPage(detected, live, { counts, info, events, updates, containers }, csrf));
+  return html(res, 200, dashboardPage(detected, live, { counts, info, events, updates, containers, lan: lanCheck.current() }, csrf));
 }
 
 function pairHtml(res, status, page) {
@@ -446,7 +455,7 @@ function renderPairForm(res, status, detected, draft, csrf, issues = []) {
 }
 
 async function handlePairGet(res, csrf, fragment = false) {
-  const detected = await currentServices();
+  const detected = await currentServices({ fresh: true });
   const content = pairPage(detected.length === 0 ? {
     stage: 'empty', csrf, fragment,
     issues: ['No services found yet. Check the stack mount and Docker connection, then try again.'],
@@ -459,7 +468,7 @@ async function handlePairGet(res, csrf, fragment = false) {
 
 async function handlePairPost(req, res, token, csrf, auth) {
   const read = await readFormBody(req, 96 * 1024);
-  const detected = await currentServices();
+  const detected = await currentServices({ fresh: true });
   if (!read.ok) return renderPairForm(res, read.reason === 'too-large' ? 413 : 400, detected, defaultPairDraft(detected, config), csrf, [pairInputError(read.reason)]);
   const draft = draftFromPairForm(detected, read.value);
   if (!checkCsrf(token, String(read.value.csrf || ''), auth.plane)) {
@@ -534,7 +543,8 @@ function handlePairFile(res, token, pairId) {
 }
 
 async function handleApiServices(req, res) {
-  const detected = await currentServices();
+  // Set up polls this for live availability, so it always reads Docker again.
+  const detected = await currentServices({ fresh: true });
   // Return credential status without credential values.
   return json(res, 200, {
     services: detected.map((d) => ({
@@ -693,7 +703,7 @@ async function handlePairReissue(req, res, token, csrf, auth) {
     expiresAt: new Date(now + PAIR_TTL_MS).toISOString(),
   };
   try {
-    const detected = await currentServices();
+    const detected = await currentServices({ fresh: true });
     const bundle = buildBundle(detected, config, retained.draft, getInstallationId(), metadata);
     const transfer = pairTransfers.create({
       envelopeJson: bundle.envelopeJson,
@@ -1465,7 +1475,9 @@ async function route(req, res, panel = {}) {
   if (path === '/api/updates/check' && method === 'POST') return handleUpdateCheckOne(req, res);
   if (path === '/api/updates/dismiss' && method === 'POST') return handleUpdateDismiss(req, res);
   if (path === '/api/docker/df' && (method === 'GET' || method === 'POST')) {
-    const df = method === 'POST' ? await systemDf({ refresh: true }) : cachedSystemDf();
+    // Volume sizes come only from a full walk, so the Volumes page asks for one when the last is stale.
+    const df = method === 'POST' ? await systemDf({ refresh: true })
+      : url.searchParams.get('volumes') === '1' ? await systemDf() : cachedSystemDf();
     if (df === 'blocked') return json(res, 503, { error: 'the socket proxy blocks /system/df (needs SYSTEM: 1)' });
     if (!df) return json(res, 503, { error: 'Docker disk usage is unavailable' });
     return json(res, 200, df);
@@ -1527,6 +1539,11 @@ export function start() {
       process.stdout.write('  first run: open it to claim the admin account.\n\n');
     }
     else process.stdout.write('\n');
+    lanCheck.refresh().then((rows) => {
+      for (const row of rows) {
+        process.stdout.write(`  warning: ${row.container} is on ${row.network} (${row.driver}${row.ip ? `, ${row.ip}` : ''}). it only needs its own bridge network, and an address on the LAN can clash with another device. see docs/unraid.md\n`);
+      }
+    });
     startMobileListener().catch(() => {});
   });
 }

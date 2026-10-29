@@ -70,7 +70,7 @@ Check the values without printing them:
 ) && docker compose -f docker-compose.published.yml config --quiet
 ```
 
-The images use `latest` by default. To pin a release, add `QM_COMPANION_TAG=0.1.11` to `.env`; it applies to Companion, the socket proxy and the all-in-one image.
+The images use `latest` by default. To pin a release, add `QM_COMPANION_TAG=0.1.12` to `.env`; it applies to Companion, the socket proxy and the all-in-one image.
 
 Start the recommended read-only profile:
 

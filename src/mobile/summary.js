@@ -1,6 +1,6 @@
 // Allow-listed Observer DTOs without sensitive Docker configuration.
 
-import { cachedSystemDf, containerStat, dockerAvailable, dockerCounts, hostProcMetrics, hostTemps, inspectContainer, listContainers, listImages, listStacks, recentEvents } from '../docker.js';
+import { cachedSystemDf, containerStat, dockerAvailable, dockerCounts, hostProcMetrics, inspectContainer, listContainers, listImages, listStacks, readHostTemps, recentEvents } from '../docker.js';
 import { runUpdateCheck, updatesState } from '../updates.js';
 
 export const MAX_EVENTS = 200;
@@ -30,7 +30,7 @@ function containerDto(c) {
 // Host-global CPU, memory, and sensor metrics; the first CPU sample may be absent.
 function hostMetrics() {
   const proc = hostProcMetrics();
-  const temps = hostTemps();
+  const temps = readHostTemps();
   const value = { ...(proc || {}) };
   if (temps && Number.isFinite(temps.cpuC)) {
     value.tempC = temps.cpuC;

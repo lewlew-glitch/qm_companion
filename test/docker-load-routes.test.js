@@ -15,7 +15,7 @@ test('stats and summaries reuse Docker reads and only the owner can force disk r
   t.after(() => rmSync(dataDir, { recursive: true, force: true }));
   const id = 'a'.repeat(64);
   const requests = [];
-  let diskReads = 0, volumeSize = 30, holdDisk = false, diskStarted;
+  let diskReads = 0, lightReads = 0, volumeSize = 30, holdDisk = false, diskStarted;
   const pendingDisk = [];
   const daemon = createServer((req, res) => {
     requests.push(req.url);
@@ -23,11 +23,13 @@ test('stats and summaries reuse Docker reads and only the owner can force disk r
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify(value));
     };
-    if (req.url === '/system/df') {
-      diskReads++;
-      const usage = { LayersSize: 100, Containers: [{ SizeRw: 20 }], Volumes: [
-        { Name: 'data', UsageData: { Size: volumeSize } }, { Name: 'unsized', UsageData: { Size: -1 } },
-      ], BuildCache: [] };
+    if (req.url === '/system/df' || req.url === '/system/df?type=image&type=build-cache') {
+      const light = req.url !== '/system/df';
+      if (light) lightReads++; else diskReads++;
+      const usage = light ? { LayersSize: 100, Containers: null, Volumes: null, BuildCache: [] }
+        : { LayersSize: 100, Containers: [{ SizeRw: 20 }], Volumes: [
+          { Name: 'data', UsageData: { Size: volumeSize } }, { Name: 'unsized', UsageData: { Size: -1 } },
+        ], BuildCache: [] };
       if (holdDisk) {
         pendingDisk.push(() => send(usage));
         diskStarted?.();
@@ -138,9 +140,14 @@ test('stats and summaries reuse Docker reads and only the owner can force disk r
   const summaries = await Promise.all([summaryDto(), summaryDto()]);
   assert.ok(summaries.every((value) => value.dockerStorage.volumesBytes === 30), 'stale summaries return without waiting for Docker');
   await started;
-  assert.equal(diskReads, 3, 'concurrent phone reads start exactly one stale refresh');
+  assert.equal(lightReads, 1, 'concurrent phone reads start exactly one light refresh');
+  assert.equal(diskReads, 2, 'a background read never walks layers or volumes again');
+  holdDisk = false;
   pendingDisk.splice(0).forEach((finish) => finish());
-  const fresh = await systemDf();
-  assert.equal(fresh.volumes.data.size, 50);
-  assert.equal(diskReads, 3, 'waiting for the stale refresh joins the existing scan');
+  const volumes = await fetch(origin + '/api/docker/df?volumes=1', { headers: ownerHeaders });
+  assert.equal((await volumes.json()).volumes.data.size, 50, 'the Volumes page walks again once the last walk is stale');
+  assert.equal(diskReads, 3);
+  const again = await fetch(origin + '/api/docker/df?volumes=1', { headers: readerHeaders });
+  assert.equal((await again.json()).volumes.data.size, 50);
+  assert.equal(diskReads, 3, 'a fresh walk is shared for ten minutes');
 });

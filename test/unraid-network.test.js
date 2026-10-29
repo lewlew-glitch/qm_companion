@@ -13,7 +13,7 @@ async function template(name) {
   const configs = [...xml.matchAll(/<Config\b[^>]*\/>/gu)].map(([tag]) => Object.fromEntries(
     [...tag.matchAll(/\b([A-Za-z]+)="([^"]*)"/gu)].map(([, key, value]) => [key, value]),
   ));
-  return { name: field('Name'), network: field('Network'), image: field('Repository'),
+  return { name: field('Name'), network: field('Network'), image: field('Repository'), requires: field('Requires'),
     extras: field('ExtraParams').split(/\s+/u).filter(Boolean), configs };
 }
 
@@ -38,6 +38,7 @@ test('Unraid templates use the same named network and resolve the proxy without 
   assert.ok(!companion.extras.some((arg) => /^--link(?:=|$)/u.test(arg)));
   const host = companion.configs.find((config) => config.Target === 'DOCKER_HOST');
   assert.equal(host.Default, `tcp://${proxy.name}:2375`);
+  for (const t of [companion, proxy]) assert.match(t.requires, /Do not use br0 or another macvlan network/u);
 });
 
 test('Unraid network migration keeps Docker private and the default access read only', async () => {
@@ -62,6 +63,7 @@ test('Unraid instructions cover new installs and existing saved templates withou
   assert.match(docs, /tcp:\/\/qm-socket-proxy:2375/u);
   assert.match(docs, /keep.*SECRET_KEY.*QM_PROXY_KEY/iu);
   assert.match(docs, /saved.*templates/iu);
+  assert.match(docs, /Other devices drop off the network while Companion runs/u);
 });
 
 const dockerAvailable = spawnSync('docker', ['--version'], { stdio: 'ignore' }).status === 0;

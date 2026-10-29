@@ -509,7 +509,7 @@ export function resetHostProcMetricsForTest() {
 }
 
 // Read host temperature sensors from /sys when available.
-export function hostTemps(base = '/sys/class/hwmon', thermalBase = '/sys/class/thermal') {
+export function hostTemps(base = '/sys/class/hwmon', thermalBase = '/sys/class/thermal', { drives: readDrives = true } = {}) {
   const cpu = [];
   const drives = [];
   const board = [];
@@ -519,6 +519,7 @@ export function hostTemps(base = '/sys/class/hwmon', thermalBase = '/sys/class/t
     const dir = `${base}/${d}`;
     let name = '';
     try { name = readFileSync(`${dir}/name`, 'utf8').trim().toLowerCase(); } catch { name = ''; }
+    if (!readDrives && /^(nvme|drivetemp)$/.test(name)) continue;
     let files;
     try { files = readdirSync(dir).filter((f) => /^temp\d+_input$/.test(f)); } catch { files = []; }
     // Collapse drive sensors to the hottest value; retain CPU core sensors.
@@ -553,6 +554,30 @@ export function hostTemps(base = '/sys/class/hwmon', thermalBase = '/sys/class/t
   if (cpu.length === 0 && drives.length === 0 && board.length === 0) return null;
   const hottest = (a) => (a.length ? Math.round(Math.max(...a)) : null);
   return { cpuC: hottest(cpu), driveC: hottest(drives), boardC: hottest(board), driveCount: drives.length };
+}
+
+// Each drivetemp read sends the disk a SMART command, so drive sensors are read at most every ten minutes.
+const DRIVE_TEMPS_MS = 10 * 60_000;
+let driveTemps = { at: -Infinity, driveC: null, driveCount: 0 };
+
+export function readHostTemps({ now = Date.now(), base, thermalBase } = {}) {
+  if (now - driveTemps.at >= DRIVE_TEMPS_MS) {
+    const temps = hostTemps(base, thermalBase);
+    driveTemps = { at: now, driveC: temps ? temps.driveC : null, driveCount: temps ? temps.driveCount : 0 };
+    return temps;
+  }
+  const temps = hostTemps(base, thermalBase, { drives: false });
+  if (!temps && driveTemps.driveC === null) return null;
+  return {
+    cpuC: temps ? temps.cpuC : null,
+    driveC: driveTemps.driveC,
+    boardC: temps ? temps.boardC : null,
+    driveCount: driveTemps.driveC === null ? 0 : driveTemps.driveCount,
+  };
+}
+
+export function resetHostTempsForTest() {
+  driveTemps = { at: -Infinity, driveC: null, driveCount: 0 };
 }
 
 // Return host, engine, and resource summary data.
@@ -597,7 +622,7 @@ export async function dockerStats() {
     .sort((a, b) => (b.cpu ?? -1) - (a.cpu ?? -1))
     .slice(0, 6);
   const disk = cachedSystemDf()?.disk || null;
-  return { cpu, cpuPartial, cpuUnavailable, mem, top, disk, metricsUnavailable, cores: Number(info && info.ncpu) > 0 ? Number(info.ncpu) : null, temps: hostTemps() };
+  return { cpu, cpuPartial, cpuUnavailable, mem, top, disk, metricsUnavailable, cores: Number(info && info.ncpu) > 0 ? Number(info.ncpu) : null, temps: readHostTemps() };
 }
 
 // Expand image-list tags without additional Docker requests.
@@ -667,13 +692,13 @@ export async function listVolumes() {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Return cached storage immediately and refresh stale data in the background.
+// Return cached storage immediately; a stale value refreshes images and build cache in the background.
 export function cachedSystemDf() {
   if (!dockerAvailable()) return null;
   return diskUsage.read();
 }
 
-// Readers and explicit owner refreshes share one filesystem walk.
+// Walk layers and volumes again when the last walk is stale, or on an owner refresh after thirty seconds.
 export async function systemDf({ refresh = false } = {}) {
   if (!dockerAvailable()) return null;
   return diskUsage.refresh(refresh);
